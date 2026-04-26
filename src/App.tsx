@@ -15,6 +15,8 @@ import ManageRoutes from "./pages/admin/ManageRoutes";
 import ManageDrivers from "./pages/admin/ManageDrivers";
 import ManageSchedules from "./pages/admin/ManageSchedules";
 import ViewBookings from "./pages/admin/ViewBookings";
+import ManageUsers from "./pages/admin/ManageUsers";
+import DriverDashboard from "./pages/driver/DriverDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -38,6 +40,8 @@ const App = () => (
             <Route path="/admin/schedules" element={<ManageSchedules />} />
             <Route path="/admin/drivers" element={<ManageDrivers />} />
             <Route path="/admin/bookings" element={<ViewBookings />} />
+            <Route path="/admin/users" element={<ManageUsers />} />
+            <Route path="/driver" element={<DriverDashboard />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

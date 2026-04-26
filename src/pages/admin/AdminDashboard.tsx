@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
-import { Bus, MapPin, Users, Ticket, LogOut, LayoutDashboard, Route, UserCog, Loader2, Calendar } from 'lucide-react';
+import { Bus, MapPin, Users, Ticket, LogOut, LayoutDashboard, Route, UserCog, Loader2, Calendar, ShieldCheck } from 'lucide-react';
 
 export default function AdminDashboard() {
   const { user, isAdmin, loading: authLoading, signOut } = useAuth();
@@ -14,6 +14,7 @@ export default function AdminDashboard() {
     routes: 0,
     drivers: 0,
     bookings: 0,
+    users: 0,
   });
   const [loading, setLoading] = useState(true);
 
@@ -29,23 +30,26 @@ export default function AdminDashboard() {
 
   const fetchStats = async () => {
     try {
-      const [busesRes, routesRes, driversRes, bookingsRes] = await Promise.all([
+      const [busesRes, routesRes, driversRes, bookingsRes, usersRes] = await Promise.all([
         supabase.from('buses').select('id', { count: 'exact', head: true }),
         supabase.from('routes').select('id', { count: 'exact', head: true }),
         supabase.from('drivers').select('id', { count: 'exact', head: true }),
         supabase.from('bookings').select('id', { count: 'exact', head: true }),
+        supabase.from('profiles').select('id', { count: 'exact', head: true }),
       ]);
 
       if (busesRes.error) console.error('Buses error:', busesRes.error);
       if (routesRes.error) console.error('Routes error:', routesRes.error);
       if (driversRes.error) console.error('Drivers error:', driversRes.error);
       if (bookingsRes.error) console.error('Bookings error:', bookingsRes.error);
+      if (usersRes.error) console.error('Users error:', usersRes.error);
 
       setStats({
         buses: busesRes.count || 0,
         routes: routesRes.count || 0,
         drivers: driversRes.count || 0,
         bookings: bookingsRes.count || 0,
+        users: usersRes.count || 0,
       });
     } catch (error) {
       console.error('Error fetching stats:', error);
@@ -67,6 +71,7 @@ export default function AdminDashboard() {
     { title: 'Active Routes', value: stats.routes, icon: Route, color: 'text-accent' },
     { title: 'Drivers', value: stats.drivers, icon: UserCog, color: 'text-success' },
     { title: 'Total Bookings', value: stats.bookings, icon: Ticket, color: 'text-warning' },
+    { title: 'Registered Users', value: stats.users, icon: Users, color: 'text-primary' },
   ];
 
   const menuItems = [
@@ -75,6 +80,7 @@ export default function AdminDashboard() {
     { title: 'Manage Schedules', description: 'Create bus schedules (bus + route + time)', icon: Calendar, href: '/admin/schedules' },
     { title: 'Manage Drivers', description: 'Driver assignments and details', icon: UserCog, href: '/admin/drivers' },
     { title: 'View Bookings', description: 'All passenger bookings', icon: Ticket, href: '/admin/bookings' },
+    { title: 'Manage Users', description: 'Control user roles and access', icon: ShieldCheck, href: '/admin/users' },
   ];
 
   return (
