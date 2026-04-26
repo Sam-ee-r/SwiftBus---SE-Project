@@ -203,7 +203,7 @@ ALTER TABLE public.bookings
 
 -- Add a uniqueness constraint for seat per schedule
 ALTER TABLE public.bookings
-  ADD CONSTRAINT IF NOT EXISTS bookings_schedule_seat_unique UNIQUE (schedule_id, seat_no);
+  ADD CONSTRAINT bookings_schedule_seat_unique UNIQUE (schedule_id, seat_no);
 
 -- Enable RLS and policies for schedules
 ALTER TABLE public.schedules ENABLE ROW LEVEL SECURITY;

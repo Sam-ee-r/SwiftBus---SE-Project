@@ -10,11 +10,18 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { ArrowLeft, Plus, Pencil, Trash2, UserCog, Loader2, Phone, CreditCard } from 'lucide-react';
+import { ArrowLeft, Plus, Pencil, Trash2, UserCog, Loader2, Phone, CreditCard, Link2 } from 'lucide-react';
 
 interface Bus {
   id: string;
   bus_no: string;
+}
+
+interface DriverUser {
+  id: string;
+  email: string | null;
+  first_name: string | null;
+  last_name: string | null;
 }
 
 interface Driver {
@@ -24,6 +31,7 @@ interface Driver {
   license_no: string;
   phone_num: string | null;
   bus_id: string | null;
+  user_id: string | null;
   bus: Bus | null;
 }
 
@@ -32,6 +40,7 @@ export default function ManageDrivers() {
   const navigate = useNavigate();
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [buses, setBuses] = useState<Bus[]>([]);
+  const [driverUsers, setDriverUsers] = useState<DriverUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingDriver, setEditingDriver] = useState<Driver | null>(null);
@@ -41,6 +50,7 @@ export default function ManageDrivers() {
     license_no: '',
     phone_num: '',
     bus_id: '',
+    user_id: '',
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -52,6 +62,7 @@ export default function ManageDrivers() {
     if (user && isAdmin) {
       fetchData();
       fetchBuses();
+      fetchDriverUsers();
     }
   }, [user, isAdmin, authLoading]);
 
@@ -94,6 +105,29 @@ export default function ManageDrivers() {
     }
   };
 
+  const fetchDriverUsers = async () => {
+    try {
+      // Get all users with the driver role
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'driver');
+      if (roleError) throw roleError;
+
+      if (!roleData?.length) { setDriverUsers([]); return; }
+
+      const userIds = roleData.map((r: any) => r.user_id);
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, email, first_name, last_name')
+        .in('id', userIds);
+      if (profileError) throw profileError;
+      setDriverUsers(profileData || []);
+    } catch (error) {
+      console.error('Error fetching driver users:', error);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
@@ -105,6 +139,7 @@ export default function ManageDrivers() {
         license_no: formData.license_no,
         phone_num: formData.phone_num || null,
         bus_id: formData.bus_id || null,
+        user_id: formData.user_id || null,
       };
 
       if (editingDriver) {
@@ -123,9 +158,10 @@ export default function ManageDrivers() {
 
       setDialogOpen(false);
       setEditingDriver(null);
-      setFormData({ first_name: '', last_name: '', license_no: '', phone_num: '', bus_id: '' });
+      setFormData({ first_name: '', last_name: '', license_no: '', phone_num: '', bus_id: '', user_id: '' });
       fetchData();
       fetchBuses();
+      fetchDriverUsers();
     } catch (error: any) {
       console.error('Error saving driver:', error);
       if (error.message?.includes('duplicate')) {
@@ -146,6 +182,7 @@ export default function ManageDrivers() {
       license_no: driver.license_no,
       phone_num: driver.phone_num || '',
       bus_id: driver.bus_id || '',
+      user_id: driver.user_id || '',
     });
     setDialogOpen(true);
   };
@@ -189,7 +226,7 @@ export default function ManageDrivers() {
             setDialogOpen(open);
             if (!open) {
               setEditingDriver(null);
-              setFormData({ first_name: '', last_name: '', license_no: '', phone_num: '', bus_id: '' });
+              setFormData({ first_name: '', last_name: '', license_no: '', phone_num: '', bus_id: '', user_id: '' });
             }
           }}>
             <DialogTrigger asChild>
@@ -269,6 +306,37 @@ export default function ManageDrivers() {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="user_id">Link to User Account</Label>
+                  <Select
+                    value={formData.user_id}
+                    onValueChange={(value) => {
+                      const selected = driverUsers.find((u) => u.id === value);
+                      setFormData({
+                        ...formData,
+                        user_id: value,
+                        first_name: selected?.first_name || formData.first_name,
+                        last_name: selected?.last_name || formData.last_name,
+                      });
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select driver user (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {driverUsers.length === 0 ? (
+                        <SelectItem value="none" disabled>No users with 'driver' role found</SelectItem>
+                      ) : (
+                        driverUsers.map((u) => (
+                          <SelectItem key={u.id} value={u.id}>
+                            {u.first_name} {u.last_name} — {u.email}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">Only users with the 'driver' role appear here. Set roles in Manage Users.</p>
                 </div>
                 <Button type="submit" variant="accent" className="w-full" disabled={submitting}>
                   {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
