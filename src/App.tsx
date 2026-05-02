@@ -10,6 +10,7 @@ import Search from "./pages/Search";
 import Book from "./pages/Book";
 import MyBookings from "./pages/MyBookings";
 import Notifications from "./pages/Notifications";
+import ProfileDashboard from "./pages/ProfileDashboard";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import ManageBuses from "./pages/admin/ManageBuses";
 import ManageRoutes from "./pages/admin/ManageRoutes";
@@ -17,6 +18,7 @@ import ManageDrivers from "./pages/admin/ManageDrivers";
 import ManageSchedules from "./pages/admin/ManageSchedules";
 import ViewBookings from "./pages/admin/ViewBookings";
 import ManageUsers from "./pages/admin/ManageUsers";
+import ManageRefunds from "./pages/admin/ManageRefunds";
 import DriverDashboard from "./pages/driver/DriverDashboard";
 import NotFound from "./pages/NotFound";
 
@@ -36,6 +38,7 @@ const App = () => (
             <Route path="/book/schedule/:scheduleId" element={<Book />} />
             <Route path="/my-bookings" element={<MyBookings />} />
             <Route path="/notifications" element={<Notifications />} />
+            <Route path="/profile" element={<ProfileDashboard />} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/buses" element={<ManageBuses />} />
             <Route path="/admin/routes" element={<ManageRoutes />} />
@@ -43,6 +46,7 @@ const App = () => (
             <Route path="/admin/drivers" element={<ManageDrivers />} />
             <Route path="/admin/bookings" element={<ViewBookings />} />
             <Route path="/admin/users" element={<ManageUsers />} />
+            <Route path="/admin/refunds" element={<ManageRefunds />} />
             <Route path="/driver" element={<DriverDashboard />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
