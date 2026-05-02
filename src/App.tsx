@@ -4,13 +4,12 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
+import { ThemeProvider } from "@/components/theme-provider";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Search from "./pages/Search";
 import Book from "./pages/Book";
 import MyBookings from "./pages/MyBookings";
-import Notifications from "./pages/Notifications";
-import ProfileDashboard from "./pages/ProfileDashboard";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import ManageBuses from "./pages/admin/ManageBuses";
 import ManageRoutes from "./pages/admin/ManageRoutes";
@@ -18,17 +17,15 @@ import ManageDrivers from "./pages/admin/ManageDrivers";
 import ManageSchedules from "./pages/admin/ManageSchedules";
 import ViewBookings from "./pages/admin/ViewBookings";
 import ManageUsers from "./pages/admin/ManageUsers";
-import ManageRefunds from "./pages/admin/ManageRefunds";
 import DriverDashboard from "./pages/driver/DriverDashboard";
-import RideProgress from "./pages/driver/RideProgress";
-import TrackRide from "./pages/TrackRide";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
+  <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
       <TooltipProvider>
         <Toaster />
         <Sonner />
@@ -39,8 +36,6 @@ const App = () => (
             <Route path="/search" element={<Search />} />
             <Route path="/book/schedule/:scheduleId" element={<Book />} />
             <Route path="/my-bookings" element={<MyBookings />} />
-            <Route path="/notifications" element={<Notifications />} />
-            <Route path="/profile" element={<ProfileDashboard />} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/buses" element={<ManageBuses />} />
             <Route path="/admin/routes" element={<ManageRoutes />} />
@@ -48,16 +43,14 @@ const App = () => (
             <Route path="/admin/drivers" element={<ManageDrivers />} />
             <Route path="/admin/bookings" element={<ViewBookings />} />
             <Route path="/admin/users" element={<ManageUsers />} />
-            <Route path="/admin/refunds" element={<ManageRefunds />} />
             <Route path="/driver" element={<DriverDashboard />} />
-            <Route path="/driver/ride/:scheduleId" element={<RideProgress />} />
-            <Route path="/track/:scheduleId" element={<TrackRide />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
       </TooltipProvider>
     </AuthProvider>
   </QueryClientProvider>
+  </ThemeProvider>
 );
 
 export default App;

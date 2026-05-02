@@ -115,7 +115,7 @@ const Index = () => {
           </div>
 
           {/* Stats */}
-          <div className="mx-auto mt-16 grid max-w-3xl grid-cols-3 gap-8 md:mt-24">
+          <div className="mx-auto mt-16 grid max-w-3xl grid-cols-1 gap-8 sm:grid-cols-3 md:mt-24">
             {[
               { value: '50K+', label: 'Happy Riders' },
               { value: '100+', label: 'Routes' },

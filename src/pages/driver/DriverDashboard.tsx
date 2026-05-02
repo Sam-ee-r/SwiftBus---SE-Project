@@ -157,7 +157,9 @@ export default function DriverDashboard() {
 
       if (error) throw error;
 
-      setTrips(prev => prev.map(t => (t.id === tripId ? { ...t, status: newStatus } : t)));
+      setTrips((prev) =>
+        prev.map((t) => (t.id === tripId ? { ...t, status: newStatus } : t))
+      );
       toast.success('✅ Trip marked as completed!');
     } catch (error: any) {
       toast.error(`Failed to update status: ${error.message}`);

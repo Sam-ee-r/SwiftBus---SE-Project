@@ -30,20 +30,14 @@ export default function Auth() {
   const [password, setPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const { signIn, signUp, user, isAdmin, isDriver } = useAuth();
+  const { signIn, signUp, user } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
     if (user) {
-      if (isAdmin) {
-        navigate('/admin');
-      } else if (isDriver) {
-        navigate('/driver');
-      } else {
-        navigate('/search'); // Passenger
-      }
+      navigate('/');
     }
-  }, [user, isAdmin, isDriver, navigate]);
+  }, [user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,7 +61,7 @@ export default function Auth() {
           }
         } else {
           toast.success('Account created! You are now signed in.');
-          // Navigation handled by useEffect
+          navigate('/');
         }
       } else {
         const validation = signInSchema.safeParse({ email, password });
@@ -86,7 +80,7 @@ export default function Auth() {
           }
         } else {
           toast.success('Welcome back!');
-          // Navigation handled by useEffect
+          navigate('/');
         }
       }
     } catch (err) {

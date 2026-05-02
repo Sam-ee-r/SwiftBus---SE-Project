@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
-import { Bus, MapPin, Users, Ticket, LogOut, LayoutDashboard, Route, UserCog, Loader2, Calendar, ShieldCheck, RotateCcw } from 'lucide-react';
+import { Bus, MapPin, Users, Ticket, LogOut, LayoutDashboard, Route, UserCog, Loader2, Calendar, ShieldCheck } from 'lucide-react';
 
 export default function AdminDashboard() {
   const { user, isAdmin, loading: authLoading, signOut } = useAuth();
@@ -81,7 +81,6 @@ export default function AdminDashboard() {
     { title: 'Manage Drivers', description: 'Driver assignments and details', icon: UserCog, href: '/admin/drivers' },
     { title: 'View Bookings', description: 'All passenger bookings', icon: Ticket, href: '/admin/bookings' },
     { title: 'Manage Users', description: 'Control user roles and access', icon: ShieldCheck, href: '/admin/users' },
-    { title: 'Manage Refunds', description: 'Approve and process refund requests', icon: RotateCcw, href: '/admin/refunds' },
   ];
 
   return (

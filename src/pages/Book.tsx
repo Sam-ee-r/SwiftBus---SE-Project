@@ -10,7 +10,6 @@ import { toast } from 'sonner';
 import { Bus, MapPin, Calendar, Check, X, Loader2, ArrowLeft, CheckCircle, Mail } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { Link } from 'react-router-dom';
-import { PaymentGateway } from '@/components/PaymentGateway';
 
 interface BusDetails {
   id: string;
@@ -37,11 +36,8 @@ export default function BookPage() {
   const [selectedSeats, setSelectedSeats] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [booking, setBooking] = useState(false);
-  const [showPayment, setShowPayment] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [bookingConfirmed, setBookingConfirmed] = useState<any>(null);
-  const [paymentTxnId, setPaymentTxnId] = useState('');
-  const [paymentProvider, setPaymentProvider] = useState('');
 
   useEffect(() => {
     // Wait for auth to finish loading before deciding to redirect.
@@ -59,56 +55,25 @@ export default function BookPage() {
 
     fetchBusDetails();
     fetchBookedSeats();
-  }, [scheduleId, travelDate, user, authLoading, isAdmin]);
+  }, [scheduleId, travelDate, user, authLoading, isAdmin, navigate]);
 
-  // Real-time subscription for seat status updates
+  // Real-time subscription for seat updates
   useEffect(() => {
     if (!scheduleId) return;
 
     const channel = supabase
-      .channel(`realtime:bookings:${scheduleId}`)
+      .channel(`realtime-bookings-${scheduleId}`)
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
           table: 'bookings',
-          filter: `schedule_id=eq.${scheduleId}`,
+          filter: `schedule_id=eq.${scheduleId}`
         },
-        (payload) => {
-          const handleSeatChange = (seatNo: number, status: string, eventType: string) => {
-            if (status !== 'cancelled' && eventType !== 'DELETE') {
-              // Seat was booked
-              setBookedSeats((current) => {
-                if (!current.includes(seatNo)) return [...current, seatNo];
-                return current;
-              });
-              
-              // If the current user has this seat selected, remove it and notify
-              setSelectedSeats((currentSelected) => {
-                if (currentSelected.includes(seatNo)) {
-                  toast.error(`Seat ${seatNo} was just booked by someone else!`);
-                  return currentSelected.filter((s) => s !== seatNo);
-                }
-                return currentSelected;
-              });
-            } else {
-              // Seat was cancelled or deleted
-              setBookedSeats((current) => current.filter((s) => s !== seatNo));
-            }
-          };
-
-          if (payload.eventType === 'INSERT') {
-            handleSeatChange(payload.new.seat_no, payload.new.status, payload.eventType);
-          } else if (payload.eventType === 'UPDATE') {
-            handleSeatChange(payload.new.seat_no, payload.new.status, payload.eventType);
-          } else if (payload.eventType === 'DELETE') {
-            // Depending on RLS, old payload might not have all columns unless replica identity is full
-            // But we handle it if available
-            if (payload.old && payload.old.seat_no) {
-              handleSeatChange(payload.old.seat_no, 'cancelled', payload.eventType);
-            }
-          }
+        () => {
+          // When another user books/cancels a seat, refresh our booked seats array
+          fetchBookedSeats();
         }
       )
       .subscribe();
@@ -201,15 +166,7 @@ export default function BookPage() {
   const pricePerSeat = schedulePrice ?? ((bus?.route?.distance_km || 10) * 0.5);
   const totalPrice = selectedSeats.length * (pricePerSeat || 0);
 
-  // Called by PaymentGateway after mock success — then save to DB
-  const handlePaymentSuccess = async (txnId: string, provider: string) => {
-    setPaymentTxnId(txnId);
-    setPaymentProvider(provider);
-    setShowPayment(false);
-    await handleBooking(txnId, provider);
-  };
-
-  const handleBooking = async (txnId = '', provider = 'online') => {
+  const handleBooking = async () => {
     if (!user || selectedSeats.length === 0) return;
 
     setBooking(true);
@@ -236,7 +193,7 @@ export default function BookPage() {
         booking_id: booking.id,
         amount: pricePerSeat,
         status: 'completed',
-        mode: provider || 'online',
+        mode: 'online',
       }));
 
       const { error: paymentError } = await supabase
@@ -348,12 +305,13 @@ export default function BookPage() {
                 </div>
 
                 {/* Seat Grid - bus layout (2 + aisle + 2 per row) */}
-                <div className="rounded-xl border border-border bg-muted/30 p-6">
-                  <div className="mb-4 text-center text-sm text-muted-foreground">
-                    Front of the bus
-                  </div>
+                <div className="rounded-xl border border-border bg-muted/30 p-4 sm:p-6 overflow-x-auto">
+                  <div className="min-w-[260px]">
+                    <div className="mb-4 text-center text-sm text-muted-foreground">
+                      Front of the bus
+                    </div>
 
-                  <div className="flex flex-col gap-3">
+                    <div className="flex flex-col gap-3">
                     {(() => {
                       const seatsPerRow = 4; // 2 seats each side
                       const rows = Math.ceil(bus.capacity / seatsPerRow);
@@ -409,6 +367,7 @@ export default function BookPage() {
 
                   <div className="mt-4 text-center text-sm text-muted-foreground">
                     Back of the bus
+                  </div>
                   </div>
                 </div>
               </CardContent>
@@ -474,18 +433,18 @@ export default function BookPage() {
                   variant="accent"
                   className="w-full"
                   size="lg"
-                  onClick={() => setShowPayment(true)}
+                  onClick={handleBooking}
                   disabled={selectedSeats.length === 0 || booking}
                 >
                   {booking ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Saving booking...
+                      Processing...
                     </>
                   ) : (
                     <>
                       <Check className="mr-2 h-4 w-4" />
-                      Proceed to Pay
+                      Confirm Booking
                     </>
                   )}
                 </Button>
@@ -494,24 +453,6 @@ export default function BookPage() {
           </div>
         </div>
       </div>
-
-      {/* Payment Gateway Dialog */}
-      <Dialog open={showPayment} onOpenChange={(o) => { if (!o) setShowPayment(false); }}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="text-center text-lg">Secure Checkout</DialogTitle>
-            <DialogDescription className="text-center text-xs">
-              SwiftBus — Route: {bus?.route?.departure} → {bus?.route?.destination}
-            </DialogDescription>
-          </DialogHeader>
-          <PaymentGateway
-            amount={totalPrice}
-            seats={selectedSeats}
-            onSuccess={handlePaymentSuccess}
-            onCancel={() => setShowPayment(false)}
-          />
-        </DialogContent>
-      </Dialog>
 
       {/* Booking Confirmation Dialog */}
       <Dialog open={showConfirmation} onOpenChange={setShowConfirmation}>
