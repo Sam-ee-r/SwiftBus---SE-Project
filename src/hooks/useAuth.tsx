@@ -23,32 +23,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isDriver, setIsDriver] = useState(false);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
+    let mounted = true;
 
+    async function resolveSession(session: Session | null) {
+      if (!mounted) return;
       if (session?.user) {
-        setTimeout(() => {
-          checkUserRole(session.user.id);
-        }, 0);
+        try {
+          const { data } = await supabase
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', session.user.id)
+            .maybeSingle();
+          if (!mounted) return;
+          setUser(session.user);
+          setSession(session);
+          setIsAdmin(data?.role === 'admin');
+          setIsDriver(data?.role === 'driver');
+        } catch {
+          if (!mounted) return;
+          setUser(session.user);
+          setSession(session);
+          setIsAdmin(false);
+          setIsDriver(false);
+        }
       } else {
+        setUser(null);
+        setSession(null);
         setIsAdmin(false);
         setIsDriver(false);
       }
+      if (mounted) setLoading(false);
+    }
+
+    // Initial session on mount
+    supabase.auth.getSession().then((res) => resolveSession(res.data?.session ?? null));
+
+    // React to subsequent auth events (sign-in, sign-out, token refresh)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (mounted) setLoading(true);
+      resolveSession(session);
     });
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-
-      if (session?.user) {
-        checkUserRole(session.user.id);
-      }
-    });
-
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const checkUserRole = async (userId: string) => {
@@ -88,7 +107,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.error('Error signing out:', error);
+    } finally {
+      // Force local state clear immediately
+      setUser(null);
+      setSession(null);
+      setIsAdmin(false);
+      setIsDriver(false);
+    }
   };
 
   return (

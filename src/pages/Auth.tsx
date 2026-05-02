@@ -30,14 +30,17 @@ export default function Auth() {
   const [password, setPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const { signIn, signUp, user } = useAuth();
+  const { signIn, signUp, user, isAdmin, isDriver, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
+  // Only redirect once auth is fully resolved (role included)
   useEffect(() => {
-    if (user) {
-      navigate('/');
+    if (!authLoading && user) {
+      if (isAdmin) navigate('/admin', { replace: true });
+      else if (isDriver) navigate('/driver', { replace: true });
+      else navigate('/', { replace: true });
     }
-  }, [user, navigate]);
+  }, [user, isAdmin, isDriver, authLoading]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,14 +63,13 @@ export default function Auth() {
             toast.error(error.message);
           }
         } else {
-          toast.success('Account created! You are now signed in.');
-          navigate('/');
+          toast.success('Account created! Signing you in...');
+          // Redirect handled by useEffect above once role loads
         }
       } else {
         const validation = signInSchema.safeParse({ email, password });
         if (!validation.success) {
           toast.error(validation.error.errors[0].message);
-          setLoading(false);
           return;
         }
 
@@ -78,10 +80,8 @@ export default function Auth() {
           } else {
             toast.error(error.message);
           }
-        } else {
-          toast.success('Welcome back!');
-          navigate('/');
         }
+        // Redirect handled by useEffect above once role loads
       }
     } catch (err) {
       toast.error('An unexpected error occurred');

@@ -7,13 +7,14 @@ import { Bus, MapPin, Calendar, Shield, Clock, CreditCard, ArrowRight, Sparkles 
 
 const Index = () => {
   const navigate = useNavigate();
-  const { user, isAdmin, loading: authLoading } = useAuth();
+  const { user, isAdmin, isDriver, loading: authLoading } = useAuth();
 
   useEffect(() => {
-    if (!authLoading && user && isAdmin) {
-      navigate('/admin');
+    if (!authLoading && user) {
+      if (isAdmin) navigate('/admin');
+      else if (isDriver) navigate('/driver');
     }
-  }, [user, isAdmin, authLoading]);
+  }, [user, isAdmin, isDriver, authLoading]);
 
   const features = [
     {
