@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { Bus, MapPin, Calendar, Check, X, Loader2, ArrowLeft, CheckCircle, Mail } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { Link } from 'react-router-dom';
+import { PaymentGateway } from '@/components/PaymentGateway';
 
 interface BusDetails {
   id: string;
@@ -36,8 +37,11 @@ export default function BookPage() {
   const [selectedSeats, setSelectedSeats] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [booking, setBooking] = useState(false);
+  const [showPayment, setShowPayment] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [bookingConfirmed, setBookingConfirmed] = useState<any>(null);
+  const [paymentTxnId, setPaymentTxnId] = useState('');
+  const [paymentProvider, setPaymentProvider] = useState('');
 
   useEffect(() => {
     // Wait for auth to finish loading before deciding to redirect.
@@ -166,7 +170,15 @@ export default function BookPage() {
   const pricePerSeat = schedulePrice ?? ((bus?.route?.distance_km || 10) * 0.5);
   const totalPrice = selectedSeats.length * (pricePerSeat || 0);
 
-  const handleBooking = async () => {
+  // Called by PaymentGateway after mock success — then save to DB
+  const handlePaymentSuccess = async (txnId: string, provider: string) => {
+    setPaymentTxnId(txnId);
+    setPaymentProvider(provider);
+    setShowPayment(false);
+    await handleBooking(txnId, provider);
+  };
+
+  const handleBooking = async (txnId = '', provider = 'online') => {
     if (!user || selectedSeats.length === 0) return;
 
     setBooking(true);
@@ -193,7 +205,7 @@ export default function BookPage() {
         booking_id: booking.id,
         amount: pricePerSeat,
         status: 'completed',
-        mode: 'online',
+        mode: provider || 'online',
       }));
 
       const { error: paymentError } = await supabase
@@ -433,18 +445,18 @@ export default function BookPage() {
                   variant="accent"
                   className="w-full"
                   size="lg"
-                  onClick={handleBooking}
+                  onClick={() => setShowPayment(true)}
                   disabled={selectedSeats.length === 0 || booking}
                 >
                   {booking ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Processing...
+                      Saving booking...
                     </>
                   ) : (
                     <>
                       <Check className="mr-2 h-4 w-4" />
-                      Confirm Booking
+                      Proceed to Pay
                     </>
                   )}
                 </Button>
@@ -453,6 +465,24 @@ export default function BookPage() {
           </div>
         </div>
       </div>
+
+      {/* Payment Gateway Dialog */}
+      <Dialog open={showPayment} onOpenChange={(o) => { if (!o) setShowPayment(false); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-center text-lg">Secure Checkout</DialogTitle>
+            <DialogDescription className="text-center text-xs">
+              SwiftBus — Route: {bus?.route?.departure} → {bus?.route?.destination}
+            </DialogDescription>
+          </DialogHeader>
+          <PaymentGateway
+            amount={totalPrice}
+            seats={selectedSeats}
+            onSuccess={handlePaymentSuccess}
+            onCancel={() => setShowPayment(false)}
+          />
+        </DialogContent>
+      </Dialog>
 
       {/* Booking Confirmation Dialog */}
       <Dialog open={showConfirmation} onOpenChange={setShowConfirmation}>
