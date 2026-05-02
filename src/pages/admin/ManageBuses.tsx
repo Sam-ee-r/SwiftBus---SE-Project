@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 // routes are managed via schedules; no select import needed here
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -16,16 +17,18 @@ interface Bus {
   id: string;
   bus_no: string;
   capacity: number;
+  drivers?: { first_name: string; last_name: string }[];
 }
 
 export default function ManageBuses() {
   const { user, isAdmin, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [buses, setBuses] = useState<Bus[]>([]);
+  const [allDrivers, setAllDrivers] = useState<{id: string, first_name: string, last_name: string}[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingBus, setEditingBus] = useState<Bus | null>(null);
-  const [formData, setFormData] = useState({ bus_no: '', capacity: 40 });
+  const [formData, setFormData] = useState({ bus_no: '', capacity: 40, driver_id: 'unassigned' });
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -40,9 +43,14 @@ export default function ManageBuses() {
 
   const fetchData = async () => {
     try {
-      const { data: busesData, error: busesError } = await supabase.from('buses').select('id, bus_no, capacity').order('bus_no');
+      const { data: busesData, error: busesError } = await supabase.from('buses').select('id, bus_no, capacity, drivers(id, first_name, last_name)').order('bus_no');
       if (busesError) throw busesError;
+      
+      const { data: driversData, error: driversError } = await supabase.from('drivers').select('id, first_name, last_name').order('first_name');
+      if (driversError) throw driversError;
+      
       setBuses(busesData || []);
+      setAllDrivers(driversData || []);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('Failed to load data');
@@ -56,6 +64,7 @@ export default function ManageBuses() {
     setSubmitting(true);
 
     try {
+      let busId = '';
       if (editingBus) {
         const { error } = await supabase
           .from('buses')
@@ -66,20 +75,33 @@ export default function ManageBuses() {
           .eq('id', editingBus.id);
 
         if (error) throw error;
+        busId = editingBus.id;
         toast.success('Bus updated successfully');
       } else {
-        const { error } = await supabase.from('buses').insert({
+        const { data: newBus, error } = await supabase.from('buses').insert({
           bus_no: formData.bus_no,
           capacity: formData.capacity,
-        });
+        }).select('id').single();
 
         if (error) throw error;
+        if (newBus) busId = newBus.id;
         toast.success('Bus added successfully');
+      }
+
+      // Handle driver assignment
+      if (busId) {
+        // First unassign any driver that currently has this bus
+        await supabase.from('drivers').update({ bus_id: null }).eq('bus_id', busId);
+        
+        // Then assign the new driver if selected
+        if (formData.driver_id !== 'unassigned') {
+          await supabase.from('drivers').update({ bus_id: busId }).eq('id', formData.driver_id);
+        }
       }
 
       setDialogOpen(false);
       setEditingBus(null);
-      setFormData({ bus_no: '', capacity: 40 });
+      setFormData({ bus_no: '', capacity: 40, driver_id: 'unassigned' });
       fetchData();
     } catch (error: any) {
       console.error('Error saving bus:', error);
@@ -93,11 +115,12 @@ export default function ManageBuses() {
     }
   };
 
-  const handleEdit = (bus: Bus) => {
-    setEditingBus(bus as any);
+  const handleEdit = (bus: any) => {
+    setEditingBus(bus);
     setFormData({
       bus_no: bus.bus_no,
       capacity: bus.capacity,
+      driver_id: bus.drivers && bus.drivers.length > 0 ? bus.drivers[0].id : 'unassigned',
     });
     setDialogOpen(true);
   };
@@ -141,7 +164,7 @@ export default function ManageBuses() {
             setDialogOpen(open);
             if (!open) {
               setEditingBus(null);
-              setFormData({ bus_no: '', capacity: 40 });
+              setFormData({ bus_no: '', capacity: 40, driver_id: 'unassigned' });
             }
           }}>
             <DialogTrigger asChild>
@@ -176,6 +199,26 @@ export default function ManageBuses() {
                     required
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="driver">Assigned Driver</Label>
+                  <Select
+                    value={formData.driver_id}
+                    onValueChange={(value) => setFormData({ ...formData, driver_id: value })}
+                  >
+                    <SelectTrigger id="driver">
+                      <SelectValue placeholder="Select a driver" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="unassigned" className="italic text-muted-foreground">Unassigned</SelectItem>
+                      {allDrivers.map((driver) => (
+                        <SelectItem key={driver.id} value={driver.id}>
+                          {driver.first_name} {driver.last_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">Assigning a driver here will automatically link their portal to this bus.</p>
+                </div>
                 {/* routes are assigned per-schedule now; no route on bus */}
                 <Button type="submit" variant="accent" className="w-full" disabled={submitting}>
                   {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
@@ -201,6 +244,7 @@ export default function ManageBuses() {
                   <TableRow>
                     <TableHead>Bus No.</TableHead>
                     <TableHead>Capacity</TableHead>
+                    <TableHead>Assigned Driver</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -209,6 +253,15 @@ export default function ManageBuses() {
                     <TableRow key={bus.id}>
                       <TableCell className="font-medium">{bus.bus_no}</TableCell>
                       <TableCell>{bus.capacity} seats</TableCell>
+                      <TableCell>
+                        {bus.drivers && bus.drivers.length > 0 ? (
+                          <span className="text-sm text-foreground font-medium">
+                            {bus.drivers[0].first_name} {bus.drivers[0].last_name}
+                          </span>
+                        ) : (
+                          <span className="text-sm text-muted-foreground italic">Unassigned</span>
+                        )}
+                      </TableCell>
                       <TableCell className="text-right">
                         <Button variant="ghost" size="sm" onClick={() => handleEdit(bus)}>
                           <Pencil className="h-4 w-4" />

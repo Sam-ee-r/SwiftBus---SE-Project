@@ -17,7 +17,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import {
   Bus, MapPin, Calendar, Clock, Ticket, Loader2,
-  RotateCcw, CheckCircle2, XCircle, RefreshCw,
+  RotateCcw, CheckCircle2, XCircle, RefreshCw, Navigation, Share2,
 } from 'lucide-react';
 import { format, parseISO, isBefore, startOfDay } from 'date-fns';
 
@@ -45,6 +45,8 @@ interface Booking {
   payment?: Payment | null;
   seat_price?: number | null;
   refund?: Refund | null;
+  schedule_id?: string | null;
+  schedule_status?: string | null;
   bus: {
     id: string;
     bus_no: string;
@@ -107,7 +109,7 @@ export default function MyBookings() {
       const scheduleIds = data.map((b: any) => b.schedule_id).filter(Boolean);
       const { data: schedulesData } = await supabase
         .from('schedules')
-        .select('id, travel_date, departure_time, seat_price, bus:buses(id, bus_no), route:routes(departure, destination, distance_km)')
+        .select('id, travel_date, departure_time, seat_price, status, bus:buses(id, bus_no), route:routes(departure, destination, distance_km)')
         .in('id', scheduleIds.length ? scheduleIds : ['']);
 
       // Fetch refunds for all bookings
@@ -131,6 +133,8 @@ export default function MyBookings() {
           payment,
           seat_price: schedule?.seat_price ?? null,
           refund,
+          schedule_id: booking.schedule_id ?? null,
+          schedule_status: schedule?.status ?? null,
           bus: {
             id: bus?.id,
             bus_no: bus?.bus_no || '',
@@ -381,7 +385,36 @@ export default function MyBookings() {
 
                       {/* ── Action Panel ──────────────────────────────── */}
                       <div className="flex flex-col items-center justify-center gap-3 border-t border-border/50 bg-muted/30 p-6 md:border-l md:border-t-0 md:w-52">
-                        {!isCancelled && !isPast && (
+                        {/* Live tracking button */}
+                        {booking.schedule_status === 'in_transit' && booking.schedule_id && !isCancelled && (
+                          <>
+                            <div className="flex items-center gap-1.5 text-xs font-semibold text-accent">
+                              <span className="h-2 w-2 rounded-full bg-accent animate-pulse" /> LIVE NOW
+                            </div>
+                            <Button
+                              variant="accent"
+                              size="sm"
+                              className="w-full"
+                              onClick={() => navigate(`/track/${booking.schedule_id}`)}
+                            >
+                              <Navigation className="mr-2 h-4 w-4" />
+                              Track Ride
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full"
+                              onClick={() => {
+                                navigator.clipboard.writeText(`${window.location.origin}/track/${booking.schedule_id}`);
+                                toast.success('Tracking link copied!');
+                              }}
+                            >
+                              <Share2 className="mr-2 h-4 w-4" />
+                              Share Link
+                            </Button>
+                          </>
+                        )}
+                        {!isCancelled && !isPast && booking.schedule_status !== 'in_transit' && (
                           <Button
                             variant="outline"
                             size="sm"
@@ -392,7 +425,7 @@ export default function MyBookings() {
                             {booking.payment ? 'Cancel & Refund' : 'Cancel Booking'}
                           </Button>
                         )}
-                        {isPast && !isCancelled && (
+                        {isPast && !isCancelled && booking.schedule_status !== 'in_transit' && (
                           <span className="text-sm text-muted-foreground text-center">Trip completed</span>
                         )}
                         {isCancelled && !hasRefund && (

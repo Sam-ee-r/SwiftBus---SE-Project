@@ -20,6 +20,8 @@ import ViewBookings from "./pages/admin/ViewBookings";
 import ManageUsers from "./pages/admin/ManageUsers";
 import ManageRefunds from "./pages/admin/ManageRefunds";
 import DriverDashboard from "./pages/driver/DriverDashboard";
+import RideProgress from "./pages/driver/RideProgress";
+import TrackRide from "./pages/TrackRide";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -48,6 +50,8 @@ const App = () => (
             <Route path="/admin/users" element={<ManageUsers />} />
             <Route path="/admin/refunds" element={<ManageRefunds />} />
             <Route path="/driver" element={<DriverDashboard />} />
+            <Route path="/driver/ride/:scheduleId" element={<RideProgress />} />
+            <Route path="/track/:scheduleId" element={<TrackRide />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
