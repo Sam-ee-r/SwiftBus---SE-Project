@@ -1,13 +1,18 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { ArrowLeft, Users, Loader2, Mail, Phone, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Users, Loader2, Mail, Phone, ShieldCheck, Plus, Trash2 } from 'lucide-react';
+import { createClient } from '@supabase/supabase-js';
 
 type AppRole = 'admin' | 'driver' | 'passenger';
 
@@ -32,6 +37,17 @@ export default function ManageUsers() {
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  
+  // Add user state
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
+  const [newUser, setNewUser] = useState({
+    email: '',
+    password: '',
+    first_name: '',
+    last_name: '',
+    role: 'passenger' as AppRole
+  });
 
   useEffect(() => {
     if (!authLoading && (!user || !isAdmin)) {
@@ -93,6 +109,67 @@ export default function ManageUsers() {
     }
   };
 
+  const handleAddUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsAdding(true);
+    try {
+      // Create a secondary client that doesn't persist the session,
+      // so the admin isn't logged out when creating a new user.
+      const secondaryClient = createClient(
+        import.meta.env.VITE_SUPABASE_URL,
+        import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        { auth: { persistSession: false, autoRefreshToken: false } }
+      );
+
+      const { data, error } = await secondaryClient.auth.signUp({
+        email: newUser.email,
+        password: newUser.password,
+        options: {
+          data: {
+            first_name: newUser.first_name,
+            last_name: newUser.last_name,
+          }
+        }
+      });
+
+      if (error) throw error;
+      
+      const newUserId = data.user?.id;
+      if (newUserId && newUser.role !== 'passenger') {
+        // Assign role if it's not the default 'passenger'
+        await supabase.from('user_roles').update({ role: newUser.role }).eq('user_id', newUserId);
+      }
+
+      toast.success('User created successfully');
+      setAddDialogOpen(false);
+      setNewUser({ email: '', password: '', first_name: '', last_name: '', role: 'passenger' });
+      fetchUsers();
+    } catch (error: any) {
+      console.error('Error creating user:', error);
+      toast.error(`Failed to create user: ${error.message}`);
+    } finally {
+      setIsAdding(false);
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    if (!window.confirm('Are you absolutely sure you want to delete this user? This action cannot be undone and will delete all their bookings.')) return;
+    
+    try {
+      setUpdatingId(userId);
+      const { error } = await supabase.rpc('delete_user', { target_user_id: userId });
+      
+      if (error) throw error;
+      
+      setUsers(prev => prev.filter(u => u.id !== userId));
+      toast.success('User deleted successfully');
+    } catch (error: any) {
+      console.error('Error deleting user:', error);
+      toast.error(`Failed to delete user: ${error.message}`);
+      setUpdatingId(null);
+    }
+  };
+
   if (authLoading || loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
@@ -114,7 +191,59 @@ export default function ManageUsers() {
               <h1 className="font-bold text-foreground">Manage Users</h1>
             </div>
           </div>
-          <span className="text-sm text-muted-foreground">{users.length} registered user{users.length !== 1 ? 's' : ''}</span>
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-muted-foreground hidden sm:inline-block">{users.length} registered user{users.length !== 1 ? 's' : ''}</span>
+            <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="accent" size="sm">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add User
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Add New User</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleAddUser} className="space-y-4 mt-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>First Name</Label>
+                      <Input required value={newUser.first_name} onChange={e => setNewUser({...newUser, first_name: e.target.value})} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Last Name</Label>
+                      <Input required value={newUser.last_name} onChange={e => setNewUser({...newUser, last_name: e.target.value})} />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Email</Label>
+                    <Input type="email" required value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Password</Label>
+                    <Input type="password" required value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} minLength={6} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Role</Label>
+                    <Select value={newUser.role} onValueChange={(val: AppRole) => setNewUser({...newUser, role: val})}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="passenger">Passenger</SelectItem>
+                        <SelectItem value="driver">Driver</SelectItem>
+                        <SelectItem value="admin">Admin</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button type="submit" variant="accent" className="w-full mt-4" disabled={isAdding}>
+                    {isAdding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Create User
+                  </Button>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
       </header>
 
@@ -135,6 +264,7 @@ export default function ManageUsers() {
                     <TableHead>Phone</TableHead>
                     <TableHead>Current Role</TableHead>
                     <TableHead>Change Role</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -189,6 +319,19 @@ export default function ManageUsers() {
                                 <SelectItem value="admin">Admin</SelectItem>
                               </SelectContent>
                             </Select>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {!isSelf && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                              disabled={updatingId === u.id}
+                              onClick={() => handleDeleteUser(u.id)}
+                            >
+                              {updatingId === u.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                            </Button>
                           )}
                         </TableCell>
                       </TableRow>

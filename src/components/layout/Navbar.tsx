@@ -1,13 +1,49 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
-import { Bus, User, LogOut, LayoutDashboard, Menu, X, Gauge } from 'lucide-react';
-import { useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { Bus, User, LogOut, LayoutDashboard, Menu, X, Gauge, Bell } from 'lucide-react';
+import { useState, useEffect } from 'react';
 
 export function Navbar() {
   const { user, signOut, isAdmin, isDriver } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (user) {
+      fetchUnreadCount();
+      
+      // Simple real-time subscription for notifications
+      const channel = supabase
+        .channel('schema-db-changes')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+          () => fetchUnreadCount()
+        )
+        .subscribe();
+        
+      return () => { supabase.removeChannel(channel); };
+    } else {
+      setUnreadCount(0);
+    }
+  }, [user]);
+
+  const fetchUnreadCount = async () => {
+    if (!user) return;
+    const { count, error } = await supabase
+      .from('notifications')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('is_read', false);
+      
+    if (!error && count !== null) {
+      setUnreadCount(count);
+    }
+  };
 
   const handleSignOut = async () => {
     await signOut();
@@ -55,10 +91,18 @@ export function Navbar() {
         </div>
 
         {/* Desktop Auth */}
-        <div className="hidden items-center gap-3 md:flex">
+        <div className="hidden items-center gap-4 md:flex">
           {user ? (
             <>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Link to="/notifications" className="relative text-muted-foreground hover:text-foreground transition-colors">
+                <Bell className="h-5 w-5" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-white">
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
+              </Link>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground border-l border-border/50 pl-4">
                 <User className="h-4 w-4" />
                 <span>{user.email}</span>
               </div>
@@ -80,12 +124,24 @@ export function Navbar() {
         </div>
 
         {/* Mobile Menu Button */}
-        <button
-          className="flex items-center justify-center md:hidden"
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-        >
-          {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-        </button>
+        <div className="flex items-center gap-3 md:hidden">
+          {user && (
+            <Link to="/notifications" className="relative text-muted-foreground hover:text-foreground">
+              <Bell className="h-5 w-5" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-accent text-[9px] font-bold text-white">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
+            </Link>
+          )}
+          <button
+            className="flex items-center justify-center"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          >
+            {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          </button>
+        </div>
       </div>
 
       {/* Mobile Menu */}

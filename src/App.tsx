@@ -9,6 +9,7 @@ import Auth from "./pages/Auth";
 import Search from "./pages/Search";
 import Book from "./pages/Book";
 import MyBookings from "./pages/MyBookings";
+import Notifications from "./pages/Notifications";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import ManageBuses from "./pages/admin/ManageBuses";
 import ManageRoutes from "./pages/admin/ManageRoutes";
@@ -34,6 +35,7 @@ const App = () => (
             <Route path="/search" element={<Search />} />
             <Route path="/book/schedule/:scheduleId" element={<Book />} />
             <Route path="/my-bookings" element={<MyBookings />} />
+            <Route path="/notifications" element={<Notifications />} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/buses" element={<ManageBuses />} />
             <Route path="/admin/routes" element={<ManageRoutes />} />

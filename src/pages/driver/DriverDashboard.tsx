@@ -110,6 +110,28 @@ export default function DriverDashboard() {
   const updateStatus = async (tripId: string, newStatus: TripStatus) => {
     setUpdatingId(tripId);
     try {
+      // If starting trip, notify all passengers
+      if (newStatus === 'in_transit') {
+        const { data: bookingsData, error: bookingsError } = await supabase
+          .from('bookings')
+          .select('passenger_id')
+          .eq('schedule_id', tripId)
+          .eq('status', 'confirmed');
+          
+        if (!bookingsError && bookingsData && bookingsData.length > 0) {
+          const tripDetails = trips.find(t => t.id === tripId);
+          const routeName = tripDetails?.route ? `${tripDetails.route.departure} to ${tripDetails.route.destination}` : 'your route';
+          
+          const notificationsToInsert = bookingsData.map(b => ({
+            user_id: b.passenger_id,
+            title: 'Bus Departing Now',
+            message: `Your bus for ${routeName} has started its journey! Please be seated.`
+          }));
+          
+          await supabase.from('notifications').insert(notificationsToInsert);
+        }
+      }
+
       const { error } = await supabase
         .from('schedules')
         .update({ status: newStatus })
@@ -121,7 +143,7 @@ export default function DriverDashboard() {
         prev.map((t) => (t.id === tripId ? { ...t, status: newStatus } : t))
       );
       toast.success(
-        newStatus === 'in_transit' ? '🚌 Trip started! Safe driving!' : '✅ Trip marked as completed!'
+        newStatus === 'in_transit' ? '🚌 Trip started! Passengers notified.' : '✅ Trip marked as completed!'
       );
     } catch (error: any) {
       toast.error(`Failed to update status: ${error.message}`);

@@ -6,8 +6,9 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { ArrowLeft, Ticket, Loader2 } from 'lucide-react';
+import { ArrowLeft, Ticket, Loader2, Trash2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
+import { Button } from '@/components/ui/button';
 
 interface Booking {
   id: string;
@@ -27,6 +28,7 @@ interface Booking {
     last_name: string | null;
     email: string | null;
   } | null;
+  passenger_id: string;
 }
 
 export default function ViewBookings() {
@@ -97,6 +99,35 @@ export default function ViewBookings() {
     }
   };
 
+  const deleteBooking = async (bookingId: string, passengerId: string, routeName: string, date: string) => {
+    if (!window.confirm('Are you sure you want to delete this booking? The passenger will be notified.')) return;
+    
+    try {
+      // 1. Notify the passenger
+      const { error: notifError } = await supabase.from('notifications').insert({
+        user_id: passengerId,
+        title: 'Booking Cancelled',
+        message: `Your booking for ${routeName} on ${date} has been cancelled by an administrator.`
+      });
+      
+      if (notifError) throw notifError;
+
+      // 2. Delete the booking
+      const { error: deleteError } = await supabase
+        .from('bookings')
+        .delete()
+        .eq('id', bookingId);
+        
+      if (deleteError) throw deleteError;
+      
+      setBookings(prev => prev.filter(b => b.id !== bookingId));
+      toast.success('Booking deleted and passenger notified.');
+    } catch (error: any) {
+      console.error('Error deleting booking:', error);
+      toast.error(`Failed to delete booking: ${error.message}`);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'confirmed':
@@ -154,6 +185,7 @@ export default function ViewBookings() {
                       <TableHead>Travel Date</TableHead>
                       <TableHead>Booked On</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -181,6 +213,21 @@ export default function ViewBookings() {
                         <TableCell>{format(parseISO(booking.travel_date), 'MMM d, yyyy')}</TableCell>
                         <TableCell>{format(parseISO(booking.booking_date), 'MMM d, yyyy')}</TableCell>
                         <TableCell>{getStatusBadge(booking.status)}</TableCell>
+                        <TableCell className="text-right">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            onClick={() => deleteBooking(
+                              booking.id, 
+                              booking.passenger_id, 
+                              booking.bus.route ? `${booking.bus.route.departure} to ${booking.bus.route.destination}` : 'Unknown Route',
+                              format(parseISO(booking.travel_date), 'MMM d, yyyy')
+                            )}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
