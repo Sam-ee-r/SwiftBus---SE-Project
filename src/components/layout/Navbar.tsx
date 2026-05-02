@@ -58,10 +58,10 @@ export function Navbar() {
         <div className="hidden items-center gap-3 md:flex">
           {user ? (
             <>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Link to="/profile" className="flex items-center gap-2 text-sm text-foreground hover:text-accent transition-colors bg-muted/50 px-3 py-1.5 rounded-full border border-border">
                 <User className="h-4 w-4" />
-                <span>{user.email}</span>
-              </div>
+                <span className="font-medium">{user.email}</span>
+              </Link>
               <Button variant="ghost" size="sm" onClick={handleSignOut}>
                 <LogOut className="h-4 w-4" />
                 Sign Out
@@ -109,10 +109,16 @@ export function Navbar() {
             )}
             <div className="border-t border-border/50 pt-4">
               {user ? (
-                <Button variant="ghost" size="sm" onClick={handleSignOut} className="w-full justify-start">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Sign Out
-                </Button>
+                <>
+                  <Link to="/profile" className="flex items-center gap-2 text-sm text-foreground hover:text-accent mb-4 px-2" onClick={() => setMobileMenuOpen(false)}>
+                    <User className="h-4 w-4" />
+                    <span className="font-medium">{user.email} (Profile)</span>
+                  </Link>
+                  <Button variant="ghost" size="sm" onClick={handleSignOut} className="w-full justify-start">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Sign Out
+                  </Button>
+                </>
               ) : (
                 <div className="flex flex-col gap-2">
                   <Button variant="ghost" size="sm" onClick={() => navigate('/auth')} className="w-full">
