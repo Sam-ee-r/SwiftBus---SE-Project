@@ -236,14 +236,14 @@ export default function SearchPage() {
                         <div className="flex items-start justify-between">
                           <div>
                             <div className="mb-1 flex items-center gap-2">
-                              <Bus className="h-5 w-5 text-primary" />
-                              <span className="font-semibold text-foreground truncate max-w-[18rem]">{schedule.bus?.bus_no}</span>
+                              <Bus className="h-5 w-5 text-primary flex-shrink-0" />
+                              <span className="font-semibold text-foreground line-clamp-1">{schedule.bus?.bus_no}</span>
                             </div>
                             {schedule.route && (
-                              <div className="flex items-center gap-3 text-sm">
-                                <span className="font-medium text-foreground truncate max-w-[10rem]">{schedule.route.departure}</span>
-                                <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                                <span className="font-medium text-foreground truncate max-w-[10rem]">{schedule.route.destination}</span>
+                              <div className="flex flex-wrap items-center gap-2 text-sm">
+                                <span className="font-medium text-foreground">{schedule.route.departure}</span>
+                                <ArrowRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                <span className="font-medium text-foreground">{schedule.route.destination}</span>
                               </div>
                             )}
                             <div className="mt-2 text-sm text-muted-foreground">
@@ -269,7 +269,7 @@ export default function SearchPage() {
                       {/* Price & Book */}
                       <div className="flex flex-col items-center justify-center border-t border-border/50 bg-muted/30 p-6 md:border-l md:border-t-0 md:w-56 flex-none">
                         <div className="mb-2 text-sm text-muted-foreground">Starting from</div>
-                        <div className="mb-4 text-2xl font-bold text-foreground truncate">Rs. {((schedule.seat_price ?? ((schedule.route?.distance_km || 10) * 0.5))).toFixed(2)}</div>
+                        <div className="mb-4 text-2xl font-bold text-foreground break-all text-center">Rs. {((schedule.seat_price ?? ((schedule.route?.distance_km || 10) * 0.5))).toFixed(2)}</div>
                         <Button variant="accent" onClick={() => handleBookNow(schedule)}>
                           Select Seats
                           <ArrowRight className="ml-2 h-4 w-4" />
