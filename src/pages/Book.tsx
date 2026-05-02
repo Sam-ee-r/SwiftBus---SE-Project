@@ -55,7 +55,64 @@ export default function BookPage() {
 
     fetchBusDetails();
     fetchBookedSeats();
-  }, [scheduleId, travelDate, user, authLoading]);
+  }, [scheduleId, travelDate, user, authLoading, isAdmin]);
+
+  // Real-time subscription for seat status updates
+  useEffect(() => {
+    if (!scheduleId) return;
+
+    const channel = supabase
+      .channel(`realtime:bookings:${scheduleId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'bookings',
+          filter: `schedule_id=eq.${scheduleId}`,
+        },
+        (payload) => {
+          const handleSeatChange = (seatNo: number, status: string, eventType: string) => {
+            if (status !== 'cancelled' && eventType !== 'DELETE') {
+              // Seat was booked
+              setBookedSeats((current) => {
+                if (!current.includes(seatNo)) return [...current, seatNo];
+                return current;
+              });
+              
+              // If the current user has this seat selected, remove it and notify
+              setSelectedSeats((currentSelected) => {
+                if (currentSelected.includes(seatNo)) {
+                  toast.error(`Seat ${seatNo} was just booked by someone else!`);
+                  return currentSelected.filter((s) => s !== seatNo);
+                }
+                return currentSelected;
+              });
+            } else {
+              // Seat was cancelled or deleted
+              setBookedSeats((current) => current.filter((s) => s !== seatNo));
+            }
+          };
+
+          if (payload.eventType === 'INSERT') {
+            handleSeatChange(payload.new.seat_no, payload.new.status, payload.eventType);
+          } else if (payload.eventType === 'UPDATE') {
+            handleSeatChange(payload.new.seat_no, payload.new.status, payload.eventType);
+          } else if (payload.eventType === 'DELETE') {
+            // Depending on RLS, old payload might not have all columns unless replica identity is full
+            // But we handle it if available
+            if (payload.old && payload.old.seat_no) {
+              handleSeatChange(payload.old.seat_no, 'cancelled', payload.eventType);
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [scheduleId]);
 
   const fetchBusDetails = async () => {
     try {
