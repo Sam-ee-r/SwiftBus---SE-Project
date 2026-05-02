@@ -134,7 +134,18 @@ export default function DriverDashboard() {
         }
 
         // Update status in DB then navigate to live ride page
-        await supabase.from('schedules').update({ status: 'in_transit', trip_progress: 0 }).eq('id', tripId);
+        const { error: startError } = await supabase
+          .from('schedules')
+          .update({ status: 'in_transit', trip_progress: 0 })
+          .eq('id', tripId);
+
+        if (startError) {
+          console.error('Failed to start trip:', startError);
+          toast.error(`Could not start trip: ${startError.message}`);
+          setUpdatingId(null);
+          return;
+        }
+
         navigate(`/driver/ride/${tripId}`);
         return;
       }
