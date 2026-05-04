@@ -1,16 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
-import { Navbar } from '@/components/layout/Navbar';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useParams, useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
-import { Bus, MapPin, Calendar, Check, X, Loader2, ArrowLeft, CheckCircle, Mail } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
-import { Link } from 'react-router-dom';
 import { PaymentGateway } from '@/components/PaymentGateway';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { PassengerNav } from '@/components/PassengerNav';
 
 interface BusDetails {
   id: string;
@@ -44,7 +40,6 @@ export default function BookPage() {
   const [paymentProvider, setPaymentProvider] = useState('');
 
   useEffect(() => {
-    // Wait for auth to finish loading before deciding to redirect.
     if (authLoading) return;
     if (!user) {
       toast.error('Please sign in to book tickets');
@@ -61,7 +56,6 @@ export default function BookPage() {
     fetchBookedSeats();
   }, [scheduleId, travelDate, user, authLoading, isAdmin, navigate]);
 
-  // Real-time subscription for seat updates
   useEffect(() => {
     if (!scheduleId) return;
 
@@ -76,7 +70,6 @@ export default function BookPage() {
           filter: `schedule_id=eq.${scheduleId}`
         },
         () => {
-          // When another user books/cancels a seat, refresh our booked seats array
           fetchBookedSeats();
         }
       )
@@ -89,7 +82,6 @@ export default function BookPage() {
 
   const fetchBusDetails = async () => {
     try {
-      // Fetch schedule (no nested selects) and then fetch related bus and route separately
       const { data: scheduleData, error: scheduleError } = await supabase
         .from('schedules')
         .select('id, departure_time, arrival_time, travel_date, seat_price, bus_id, route_id')
@@ -98,7 +90,6 @@ export default function BookPage() {
 
       if (scheduleError) throw scheduleError;
 
-      // fetch related bus
       let busData = null;
       if (scheduleData?.bus_id) {
         const { data: b, error: bErr } = await supabase.from('buses').select('id, bus_no, capacity').eq('id', scheduleData.bus_id).single();
@@ -106,19 +97,17 @@ export default function BookPage() {
         busData = b || null;
       }
 
-      // fetch related route
       let routeData = null;
       if (scheduleData?.route_id) {
         const { data: r, error: rErr } = await supabase.from('routes').select('id, departure, destination, distance_km').eq('id', scheduleData.route_id).single();
         if (rErr) throw rErr;
         routeData = r || null;
       }
-      // Prefer travel_date from schedule if available
+
       if (scheduleData?.travel_date) {
         setTravelDate(scheduleData.travel_date);
       }
 
-      // Use seat_price from schedule if provided, otherwise fallback to distance-based pricing
       const seatPriceFromSchedule = typeof scheduleData?.seat_price === 'number' ? scheduleData.seat_price : null;
       const fallbackPrice = routeData ? ((routeData.distance_km || 10) * 0.5) : 0.0;
       setSchedulePrice(seatPriceFromSchedule ?? fallbackPrice);
@@ -170,7 +159,6 @@ export default function BookPage() {
   const pricePerSeat = schedulePrice ?? ((bus?.route?.distance_km || 10) * 0.5);
   const totalPrice = selectedSeats.length * (pricePerSeat || 0);
 
-  // Called by PaymentGateway after mock success — then save to DB
   const handlePaymentSuccess = async (txnId: string, provider: string) => {
     setPaymentTxnId(txnId);
     setPaymentProvider(provider);
@@ -183,7 +171,6 @@ export default function BookPage() {
 
     setBooking(true);
     try {
-      // Create bookings for each seat
       const bookings = selectedSeats.map((seatNo) => ({
         passenger_id: user.id,
         bus_id: bus?.id || null,
@@ -200,7 +187,6 @@ export default function BookPage() {
 
       if (bookingError) throw bookingError;
 
-      // Create payments for each booking
       const payments = bookingData.map((booking) => ({
         booking_id: booking.id,
         amount: pricePerSeat,
@@ -214,7 +200,6 @@ export default function BookPage() {
 
       if (paymentError) throw paymentError;
 
-      // Send email receipt via Supabase edge function or direct API call
       const confirmationData = {
         bookings: bookingData,
         bus: bus,
@@ -226,7 +211,6 @@ export default function BookPage() {
         schedule_id: scheduleId,
       };
 
-      // Call edge function to send email (if available)
       try {
         await supabase.functions.invoke('send-booking-email', {
           body: confirmationData,
@@ -235,7 +219,6 @@ export default function BookPage() {
         console.log('Email service not configured, but booking saved:', emailError);
       }
 
-      // Show confirmation dialog
       setBookingConfirmed(confirmationData);
       setShowConfirmation(true);
     } catch (error: any) {
@@ -251,227 +234,202 @@ export default function BookPage() {
     }
   };
 
+  const renderSeat = (seatNo: number) => {
+    if (seatNo > (bus?.capacity || 40)) return null;
+    const isBooked = bookedSeats.includes(seatNo);
+    const isSelected = selectedSeats.includes(seatNo);
+
+    let btnClass = "w-12 h-12 rounded border flex items-center justify-center font-label-md text-label-md relative transition-all duration-200 ";
+
+    if (isBooked) {
+      btnClass += "bg-surface-variant border-surface-container-highest opacity-50 cursor-not-allowed text-on-surface-variant";
+    } else if (isSelected) {
+      btnClass += "border-electric-violet bg-electric-violet/20 seat-glow text-electric-violet";
+    } else {
+      btnClass += "border-outline-variant bg-surface-container hover:border-electric-violet hover:bg-electric-violet/10 text-on-surface cursor-pointer group relative";
+    }
+
+    return (
+      <button
+        key={seatNo}
+        onClick={() => toggleSeat(seatNo)}
+        disabled={isBooked}
+        className={btnClass}
+      >
+        {seatNo}
+      </button>
+    );
+  };
+
+  const rows = Math.ceil((bus?.capacity || 40) / 4);
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <div className="flex h-[60vh] items-center justify-center">
-          <Loader2 className="h-12 w-12 animate-spin text-accent" />
-        </div>
+      <div className="bg-background text-on-background min-h-screen flex items-center justify-center">
+        <span className="material-symbols-outlined animate-spin text-[48px] text-electric-violet">sync</span>
       </div>
     );
   }
 
   if (!bus) {
     return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <div className="container mx-auto px-4 py-16 text-center">
-          <p className="text-muted-foreground">Bus not found</p>
-          <Link to="/search" className="mt-4 inline-block text-accent hover:underline">
-            Back to search
-          </Link>
-        </div>
+      <div className="bg-background text-on-background min-h-screen flex flex-col items-center justify-center gap-4">
+        <span className="material-symbols-outlined text-[64px] text-outline-variant">directions_bus</span>
+        <p className="text-on-surface-variant text-xl">Bus not found</p>
+        <Link to="/search" className="text-electric-violet hover:underline flex items-center gap-2">
+          <span className="material-symbols-outlined text-[20px]">arrow_back</span>
+          Back to search
+        </Link>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar />
+    <div className="bg-deep-space text-on-surface min-h-screen font-body-md relative overflow-x-hidden selection:bg-electric-violet selection:text-white">
+      {/* Decorative Background Glows */}
+      <div className="fixed top-0 left-1/4 w-[800px] h-[800px] bg-electric-violet rounded-full mix-blend-screen filter blur-[150px] opacity-10 pointer-events-none z-0"></div>
+      <div className="fixed bottom-0 right-1/4 w-[600px] h-[600px] bg-emerald-spark rounded-full mix-blend-screen filter blur-[120px] opacity-10 pointer-events-none z-0"></div>
 
-      <div className="container mx-auto px-4 py-8">
-        <Link
-          to="/search"
-          className="mb-6 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to search
-        </Link>
+      <PassengerNav />
 
-        <div className="grid gap-8 lg:grid-cols-3">
-          {/* Seat Selection */}
-          <div className="lg:col-span-2">
-            <Card className="border-border/50 shadow-soft">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Bus className="h-5 w-5 text-primary" />
-                  Select Your Seats
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {/* Legend */}
-                <div className="mb-6 flex flex-wrap items-center gap-6 text-sm">
-                  <div className="flex items-center gap-2">
-                    <div className="h-8 w-8 rounded-lg border-2 border-border bg-card" />
-                    <span className="text-muted-foreground">Available</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="h-8 w-8 rounded-lg bg-accent" />
-                    <span className="text-muted-foreground">Selected</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="h-8 w-8 rounded-lg bg-muted" />
-                    <span className="text-muted-foreground">Booked</span>
-                  </div>
-                </div>
-
-                {/* Seat Grid - bus layout (2 + aisle + 2 per row) */}
-                <div className="rounded-xl border border-border bg-muted/30 p-4 sm:p-6 overflow-x-auto">
-                  <div className="min-w-[260px]">
-                    <div className="mb-4 text-center text-sm text-muted-foreground">
-                      Front of the bus
+      {/* Main Content */}
+      <main className="relative z-10 pt-xl pb-xl px-gutter md:px-margin max-w-7xl mx-auto mt-16 md:mt-16">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-margin">
+          
+          {/* Left Column: Seat Map */}
+          <div className="lg:col-span-8 flex flex-col gap-md">
+            <div className="flex flex-col gap-xs">
+              <h1 className="font-h2 text-h2 text-on-surface flex items-center gap-sm">
+                <span className="material-symbols-outlined text-[32px]">directions_bus</span> Select Your Seats
+              </h1>
+            </div>
+            
+            {/* Legend */}
+            <div className="glass-panel rounded-lg p-sm flex flex-wrap gap-md items-center justify-center">
+              <div className="flex items-center gap-xs">
+                <div className="w-6 h-6 rounded border border-outline-variant bg-surface-container"></div>
+                <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Available</span>
+              </div>
+              <div className="flex items-center gap-xs">
+                <div className="w-6 h-6 rounded border border-electric-violet bg-electric-violet/20 seat-glow"></div>
+                <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Selected</span>
+              </div>
+              <div className="flex items-center gap-xs">
+                <div className="w-6 h-6 rounded bg-surface-variant border border-surface-container-highest opacity-50"></div>
+                <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Booked</span>
+              </div>
+            </div>
+            
+            {/* Bus Layout Container */}
+            <div className="glass-panel rounded-xl p-md flex flex-col items-center overflow-x-auto">
+              {/* Bus Front Indicator */}
+              <div className="w-full min-w-[300px] max-w-[400px] border-b-2 border-surface-container-high pb-4 mb-6 flex justify-center items-center relative">
+                <span className="font-body-md text-on-surface-variant text-center w-full">Front of the bus</span>
+              </div>
+              
+              {/* Seat Grid (2+2 Layout) */}
+              <div className="flex gap-lg">
+                {/* Left Pair */}
+                <div className="flex flex-col gap-sm">
+                  {Array.from({ length: rows }).map((_, r) => (
+                    <div key={`left-${r}`} className="flex gap-sm">
+                      {renderSeat(r * 4 + 1)}
+                      {renderSeat(r * 4 + 2)}
                     </div>
-
-                    <div className="flex flex-col gap-3">
-                    {(() => {
-                      const seatsPerRow = 4; // 2 seats each side
-                      const rows = Math.ceil(bus.capacity / seatsPerRow);
-                      return Array.from({ length: rows }).map((_, r) => {
-                        const base = r * seatsPerRow;
-                        const left1 = base + 1;
-                        const left2 = base + 2;
-                        const right1 = base + 3;
-                        const right2 = base + 4;
-
-                        const renderSeat = (seatNo: number) => {
-                          if (seatNo > bus.capacity) return <div key={seatNo} className="w-12" />;
-                          const isBooked = bookedSeats.includes(seatNo);
-                          const isSelected = selectedSeats.includes(seatNo);
-                          return (
-                            <button
-                              key={seatNo}
-                              onClick={() => toggleSeat(seatNo)}
-                              disabled={isBooked}
-                              className={
-                                `flex h-10 w-12 items-center justify-center rounded-lg font-medium text-sm transition-all duration-200 ` +
-                                (isBooked
-                                  ? 'bg-muted text-muted-foreground cursor-not-allowed'
-                                  : isSelected
-                                    ? 'bg-accent text-accent-foreground shadow-glow'
-                                    : 'border-2 border-border bg-card text-foreground hover:border-accent/50 hover:bg-accent/10')
-                              }
-                            >
-                              {seatNo}
-                            </button>
-                          );
-                        };
-
-                        return (
-                          <div key={r} className="flex items-center justify-center">
-                            <div className="flex gap-2">
-                              {renderSeat(left1)}
-                              {renderSeat(left2)}
-                            </div>
-
-                            {/* aisle */}
-                            <div className="w-8" />
-
-                            <div className="flex gap-2">
-                              {renderSeat(right1)}
-                              {renderSeat(right2)}
-                            </div>
-                          </div>
-                        );
-                      });
-                    })()}
-                  </div>
-
-                  <div className="mt-4 text-center text-sm text-muted-foreground">
-                    Back of the bus
-                  </div>
-                  </div>
+                  ))}
                 </div>
-              </CardContent>
-            </Card>
+                
+                {/* Aisle */}
+                <div className="w-8 flex flex-col justify-between py-6 items-center">
+                </div>
+                
+                {/* Right Pair */}
+                <div className="flex flex-col gap-sm">
+                  {Array.from({ length: rows }).map((_, r) => (
+                    <div key={`right-${r}`} className="flex gap-sm">
+                      {renderSeat(r * 4 + 3)}
+                      {renderSeat(r * 4 + 4)}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Bus Back Indicator */}
+              <div className="w-full min-w-[300px] max-w-[400px] border-t-2 border-surface-container-high pt-4 mt-6 flex justify-center items-center relative">
+                <span className="font-body-md text-on-surface-variant text-center w-full">Back of the bus</span>
+              </div>
+            </div>
           </div>
-
-          {/* Booking Summary */}
-          <div>
-            <Card className="sticky top-24 border-border/50 shadow-soft">
-              <CardHeader>
-                <CardTitle>Booking Summary</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-sm">
-                    <Bus className="h-4 w-4 text-primary" />
-                    <span className="font-medium">{bus.bus_no}</span>
-                  </div>
-                  {bus.route && (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <MapPin className="h-4 w-4" />
-                      <span>{bus.route.departure} → {bus.route.destination}</span>
-                    </div>
-                  )}
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Calendar className="h-4 w-4" />
-                    <span>{format(parseISO(travelDate), 'EEEE, MMMM d, yyyy')}</span>
-                  </div>
+          
+          {/* Right Column: Booking Summary */}
+          <div className="lg:col-span-4 flex flex-col gap-md">
+            <div className="glass-panel rounded-xl p-md flex flex-col gap-md sticky top-[88px]">
+              <h2 className="font-h3 text-h3 text-on-surface mb-xs">Booking Summary</h2>
+              
+              {/* Route Details */}
+              <div className="flex flex-col gap-sm border-b border-surface-container-highest pb-sm">
+                <div className="flex items-center gap-3 text-on-surface font-label-md text-body-md">
+                  <span className="material-symbols-outlined text-[20px] text-outline">directions_bus</span>
+                  {bus?.bus_no}
                 </div>
-
-                <div className="border-t border-border pt-4">
-                  <div className="mb-2 text-sm text-muted-foreground">
-                    Selected Seats ({selectedSeats.length})
-                  </div>
-                  {selectedSeats.length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
-                      {selectedSeats.sort((a, b) => a - b).map((seat) => (
-                        <span
-                          key={seat}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-accent/10 text-sm font-medium text-accent"
-                        >
-                          {seat}
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">No seats selected</p>
+                <div className="flex items-center gap-3 text-on-surface-variant font-body-md">
+                  <span className="material-symbols-outlined text-[20px] text-outline">location_on</span>
+                  {bus?.route?.departure} <span className="material-symbols-outlined text-[16px]">arrow_forward</span> {bus?.route?.destination}
+                </div>
+                <div className="flex items-center gap-3 text-on-surface-variant font-body-md">
+                  <span className="material-symbols-outlined text-[20px] text-outline">calendar_today</span>
+                  {format(parseISO(travelDate), 'EEEE, MMMM d, yyyy')}
+                </div>
+              </div>
+              
+              {/* Selected Seats */}
+              <div className="flex flex-col gap-sm border-b border-surface-container-highest pb-sm">
+                <span className="font-body-md text-on-surface-variant mb-1">Selected Seats ({selectedSeats.length})</span>
+                <div className="flex flex-wrap gap-2">
+                  {selectedSeats.length > 0 ? selectedSeats.sort((a,b)=>a-b).map(seat => (
+                    <div key={seat} className="w-10 h-10 rounded-full bg-electric-violet/20 border border-electric-violet flex items-center justify-center text-electric-violet font-label-md">{seat}</div>
+                  )) : (
+                    <span className="text-on-surface-variant text-sm font-label-sm italic">No seats selected</span>
                   )}
                 </div>
-
-                <div className="border-t border-border pt-4">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Price per seat</span>
-                    <span className="font-medium">Rs. {pricePerSeat.toFixed(2)}</span>
-                  </div>
-                  <div className="mt-2 flex items-center justify-between text-lg">
-                    <span className="font-semibold">Total</span>
-                    <span className="font-bold text-accent">Rs. {totalPrice.toFixed(2)}</span>
-                  </div>
+              </div>
+              
+              {/* Pricing Breakdown */}
+              <div className="flex flex-col gap-xs mb-sm">
+                <div className="flex justify-between items-center text-on-surface-variant font-body-md">
+                  <span>Price per seat</span>
+                  <span className="text-on-surface font-label-md">PKR {pricePerSeat.toLocaleString('en-PK')}</span>
                 </div>
-
-                <Button
-                  variant="accent"
-                  className="w-full"
-                  size="lg"
-                  onClick={() => setShowPayment(true)}
-                  disabled={selectedSeats.length === 0 || booking}
-                >
-                  {booking ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Saving booking...
-                    </>
-                  ) : (
-                    <>
-                      <Check className="mr-2 h-4 w-4" />
-                      Proceed to Pay
-                    </>
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
+                <div className="flex justify-between items-center mt-4">
+                  <span className="font-h3 text-h3 text-on-surface">Total</span>
+                  <span className="font-h3 text-h3 text-emerald-spark">PKR {totalPrice.toLocaleString('en-PK')}</span>
+                </div>
+              </div>
+              
+              {/* Primary CTA */}
+              <button 
+                disabled={selectedSeats.length === 0 || booking}
+                onClick={() => setShowPayment(true)}
+                className="w-full py-4 rounded-lg bg-emerald-spark text-midnight-indigo font-label-md text-label-md flex items-center justify-center gap-2 uppercase tracking-wider hover:bg-secondary-fixed transition-colors shadow-[0_0_20px_hsla(165,80%,50%,0.3)] hover:shadow-[0_0_30px_hsla(165,80%,50%,0.5)] active:scale-95 duration-200 disabled:opacity-50 disabled:pointer-events-none"
+              >
+                {booking ? (
+                  <span className="material-symbols-outlined animate-spin text-[20px]">sync</span>
+                ) : (
+                  <span className="material-symbols-outlined text-[20px]">check</span>
+                )}
+                {booking ? 'Saving...' : 'Proceed to Pay'}
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      </main>
 
       {/* Payment Gateway Dialog */}
       <Dialog open={showPayment} onOpenChange={(o) => { if (!o) setShowPayment(false); }}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-sm bg-surface border-white/10 text-on-surface">
           <DialogHeader>
-            <DialogTitle className="text-center text-lg">Secure Checkout</DialogTitle>
-            <DialogDescription className="text-center text-xs">
+            <DialogTitle className="text-center text-lg text-white">Secure Checkout</DialogTitle>
+            <DialogDescription className="text-center text-xs text-on-surface-variant">
               SwiftBus — Route: {bus?.route?.departure} → {bus?.route?.destination}
             </DialogDescription>
           </DialogHeader>
@@ -486,70 +444,71 @@ export default function BookPage() {
 
       {/* Booking Confirmation Dialog */}
       <Dialog open={showConfirmation} onOpenChange={setShowConfirmation}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md bg-surface border-white/10 text-on-surface">
           <div className="flex flex-col items-center text-center">
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-success/10">
-              <CheckCircle className="h-8 w-8 text-success" />
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-spark/20 border border-emerald-spark/30 shadow-[0_0_15px_hsla(165,80%,50%,0.2)]">
+              <span className="material-symbols-outlined text-[32px] text-emerald-spark">check_circle</span>
             </div>
             <DialogHeader className="w-full">
-              <DialogTitle className="text-2xl">Booking Confirmed!</DialogTitle>
-              <DialogDescription className="mt-2">
+              <DialogTitle className="text-2xl text-white">Booking Confirmed!</DialogTitle>
+              <DialogDescription className="mt-2 text-on-surface-variant">
                 Your seats have been successfully reserved.
               </DialogDescription>
             </DialogHeader>
 
             {bookingConfirmed && (
-              <div className="mt-6 w-full space-y-4 rounded-lg bg-muted/50 p-4 text-left">
+              <div className="mt-6 w-full space-y-4 rounded-lg bg-surface-container border border-white/5 p-4 text-left">
                 <div>
-                  <p className="text-sm text-muted-foreground">Bus</p>
-                  <p className="font-semibold">{bookingConfirmed.bus?.bus_no}</p>
+                  <p className="text-sm text-on-surface-variant">Bus</p>
+                  <p className="font-semibold text-white">{bookingConfirmed.bus?.bus_no}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Route</p>
-                  <p className="font-semibold">
+                  <p className="text-sm text-on-surface-variant">Route</p>
+                  <p className="font-semibold text-white">
                     {bookingConfirmed.bus?.route?.departure} → {bookingConfirmed.bus?.route?.destination}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Travel Date</p>
-                  <p className="font-semibold">{format(parseISO(bookingConfirmed.travel_date), 'EEEE, MMMM d, yyyy')}</p>
+                  <p className="text-sm text-on-surface-variant">Travel Date</p>
+                  <p className="font-semibold text-white">{format(parseISO(bookingConfirmed.travel_date), 'EEEE, MMMM d, yyyy')}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Seats</p>
-                  <p className="font-semibold">
+                  <p className="text-sm text-on-surface-variant">Seats</p>
+                  <p className="font-semibold text-electric-violet">
                     {bookingConfirmed.bookings.map((b: any) => `#${b.seat_no}`).join(', ')}
                   </p>
                 </div>
-                <div className="border-t border-border pt-4">
-                  <p className="text-sm text-muted-foreground">Total Amount</p>
-                  <p className="text-xl font-bold text-accent">Rs. {bookingConfirmed.total_price.toFixed(2)}</p>
+                <div className="border-t border-white/10 pt-4">
+                  <p className="text-sm text-on-surface-variant">Total Amount</p>
+                  <p className="text-xl font-bold text-emerald-spark">PKR {bookingConfirmed.total_price.toLocaleString('en-PK')}</p>
                 </div>
               </div>
             )}
 
             <div className="mt-6 flex w-full flex-col gap-3">
-              <Button
-                variant="accent"
-                className="w-full"
+              <button
+                className="w-full py-3 rounded-lg bg-electric-violet text-white font-label-md flex items-center justify-center gap-2 hover:bg-primary-container transition-colors shadow-[0_0_15px_hsla(255,65%,60%,0.3)]"
                 onClick={() => {
                   setShowConfirmation(false);
                   navigate('/my-bookings');
                 }}
               >
-                <Check className="mr-2 h-4 w-4" />
+                <span className="material-symbols-outlined">receipt_long</span>
                 View My Bookings
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => setShowConfirmation(false)}
+              </button>
+              <button
+                className="w-full py-3 rounded-lg bg-surface-container border border-outline-variant text-on-surface font-label-md hover:bg-white/5 transition-colors"
+                onClick={() => {
+                  setShowConfirmation(false);
+                  navigate('/search');
+                }}
               >
-                Continue Shopping
-              </Button>
+                Search More Buses
+              </button>
             </div>
 
-            <p className="mt-4 text-xs text-muted-foreground">
-              <Mail className="inline mr-1 h-3 w-3" />
+            <p className="mt-4 text-xs text-on-surface-variant flex items-center gap-1">
+              <span className="material-symbols-outlined text-[14px]">mail</span>
               A confirmation receipt has been sent to {bookingConfirmed?.passenger_email}
             </p>
           </div>

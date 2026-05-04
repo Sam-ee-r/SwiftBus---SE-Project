@@ -1,12 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Bus, Mail, Lock, User, ArrowLeft, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { z } from 'zod';
 
@@ -40,7 +35,7 @@ export default function Auth() {
       else if (isDriver) navigate('/driver', { replace: true });
       else navigate('/', { replace: true });
     }
-  }, [user, isAdmin, isDriver, authLoading]);
+  }, [user, isAdmin, isDriver, authLoading, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,6 +65,7 @@ export default function Auth() {
         const validation = signInSchema.safeParse({ email, password });
         if (!validation.success) {
           toast.error(validation.error.errors[0].message);
+          setLoading(false);
           return;
         }
 
@@ -91,105 +87,115 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      {/* Background */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -left-40 top-0 h-96 w-96 rounded-full bg-primary/5 blur-3xl" />
-        <div className="absolute -right-40 bottom-0 h-96 w-96 rounded-full bg-accent/5 blur-3xl" />
+    <div className="bg-deep-space text-on-surface font-body-md antialiased min-h-screen relative flex items-center justify-center p-4 selection:bg-electric-violet selection:text-white">
+      {/* Decorative Background Glows */}
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-electric-violet/10 rounded-full blur-[120px]"></div>
+        <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-emerald-spark/10 rounded-full blur-[150px]"></div>
       </div>
 
-      <div className="relative w-full max-w-md">
+      <div className="relative z-10 w-full max-w-[420px]">
         {/* Back Link */}
         <Link
           to="/"
-          className="mb-8 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          className="mb-8 inline-flex items-center gap-2 text-sm text-on-surface-variant hover:text-white transition-colors group"
         >
-          <ArrowLeft className="h-4 w-4" />
+          <span className="material-symbols-outlined text-[18px] group-hover:-translate-x-1 transition-transform">arrow_back</span>
           Back to home
         </Link>
 
-        <Card className="border-border/50 shadow-large">
-          <CardHeader className="text-center pb-2">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary">
-              <Bus className="h-8 w-8 text-primary-foreground" />
+        {/* Card */}
+        <div className="bg-surface-container/60 backdrop-blur-xl border border-white/10 rounded-2xl p-8 relative overflow-hidden shadow-[0_0_40px_rgba(0,0,0,0.5)]">
+          {/* subtle inner glow */}
+          <div className="absolute inset-0 bg-gradient-to-br from-electric-violet/5 to-transparent pointer-events-none"></div>
+          
+          <div className="relative z-10">
+            <div className="text-center mb-8">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-electric-violet/20 border border-electric-violet/30 shadow-[0_0_15px_hsla(255,65%,60%,0.2)]">
+                <span className="material-symbols-outlined text-[32px] text-electric-violet">directions_bus</span>
+              </div>
+              <h1 className="font-h2 text-3xl font-bold text-white tracking-tight">
+                {isSignUp ? 'Create an account' : 'Welcome back'}
+              </h1>
+              <p className="mt-2 text-sm text-on-surface-variant">
+                {isSignUp
+                  ? 'Start your journey with SwiftBus'
+                  : 'Sign in to your SwiftBus account'}
+              </p>
             </div>
-            <CardTitle className="text-2xl font-bold">
-              {isSignUp ? 'Create an account' : 'Welcome back'}
-            </CardTitle>
-            <CardDescription>
-              {isSignUp
-                ? 'Start your journey with SwiftBus'
-                : 'Sign in to your SwiftBus account'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
+
+            <form onSubmit={handleSubmit} className="flex flex-col gap-5">
               {isSignUp && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="firstName">First Name</Label>
+                <div className="flex gap-4">
+                  <div className="flex-1 flex flex-col gap-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">First Name</label>
                     <div className="relative">
-                      <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="firstName"
+                      <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">person</span>
+                      <input
+                        type="text"
                         placeholder="First name"
                         value={firstName}
                         onChange={(e) => setFirstName(e.target.value)}
-                        className="pl-10"
                         required
+                        className="w-full bg-[#14121a]/50 border border-white/10 rounded-lg py-3 pl-10 pr-4 text-sm font-semibold text-white focus:border-violet-500 focus:ring-1 focus:ring-violet-500 focus:outline-none transition-all placeholder:text-slate-500"
                       />
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="lastName">Last Name</Label>
-                    <Input
-                      id="lastName"
-                      placeholder="Last name"
-                      value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
-                      required
-                    />
+                  <div className="flex-1 flex flex-col gap-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Last Name</label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="Last name"
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        required
+                        className="w-full bg-[#14121a]/50 border border-white/10 rounded-lg py-3 px-4 text-sm font-semibold text-white focus:border-violet-500 focus:ring-1 focus:ring-violet-500 focus:outline-none transition-all placeholder:text-slate-500"
+                      />
+                    </div>
                   </div>
                 </div>
               )}
 
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Email Address</label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="email"
+                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">mail</span>
+                  <input
                     type="email"
-                    placeholder="Email"
+                    placeholder="name@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="pl-10"
                     required
+                    className="w-full bg-[#14121a]/50 border border-white/10 rounded-lg py-3 pl-10 pr-4 text-sm font-semibold text-white focus:border-violet-500 focus:ring-1 focus:ring-violet-500 focus:outline-none transition-all placeholder:text-slate-500"
                   />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Password</label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="password"
+                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">lock</span>
+                  <input
                     type="password"
-                    placeholder="Password"
+                    placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10"
                     required
                     minLength={6}
+                    className="w-full bg-[#14121a]/50 border border-white/10 rounded-lg py-3 pl-10 pr-4 text-sm font-semibold text-white focus:border-violet-500 focus:ring-1 focus:ring-violet-500 focus:outline-none transition-all placeholder:text-slate-500"
                   />
                 </div>
               </div>
 
-              <Button type="submit" variant="accent" className="w-full" size="lg" disabled={loading}>
+              <button
+                type="submit"
+                disabled={loading}
+                className="mt-2 w-full bg-electric-violet hover:bg-[#7e6be0] text-white font-semibold py-3 rounded-lg transition-colors shadow-[0_0_15px_hsla(255,65%,60%,0.2)] hover:shadow-[0_0_20px_hsla(255,65%,60%,0.4)] disabled:opacity-50 flex items-center justify-center gap-2 active:scale-95"
+              >
                 {loading ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <span className="material-symbols-outlined animate-spin text-[20px]">sync</span>
                     {isSignUp ? 'Creating account...' : 'Signing in...'}
                   </>
                 ) : isSignUp ? (
@@ -197,17 +203,17 @@ export default function Auth() {
                 ) : (
                   'Sign In'
                 )}
-              </Button>
+              </button>
             </form>
 
-            <div className="mt-6 text-center text-sm text-muted-foreground">
+            <div className="mt-6 text-center text-sm text-on-surface-variant">
               {isSignUp ? (
                 <>
                   Already have an account?{' '}
                   <button
                     type="button"
                     onClick={() => setIsSignUp(false)}
-                    className="font-medium text-accent hover:underline"
+                    className="font-semibold text-emerald-400 hover:text-emerald-300 hover:underline transition-colors"
                   >
                     Sign in
                   </button>
@@ -218,15 +224,15 @@ export default function Auth() {
                   <button
                     type="button"
                     onClick={() => setIsSignUp(true)}
-                    className="font-medium text-accent hover:underline"
+                    className="font-semibold text-emerald-400 hover:text-emerald-300 hover:underline transition-colors"
                   >
                     Create one
                   </button>
                 </>
               )}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     </div>
   );

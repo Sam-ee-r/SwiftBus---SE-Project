@@ -128,7 +128,7 @@ export default function DriverDashboard() {
             bookingsData.map(b => ({
               user_id: b.passenger_id,
               title: 'Bus Departing Now',
-              message: `Your bus for ${routeName} has started its journey! Track it live.`,
+              message: `Your bus for ${routeName} has started its journey!`,
             }))
           );
         }
@@ -146,7 +146,7 @@ export default function DriverDashboard() {
           return;
         }
 
-        navigate(`/driver/ride/${tripId}`);
+        fetchTrips();
         return;
       }
 

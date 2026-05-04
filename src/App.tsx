@@ -18,6 +18,7 @@ import ManageSchedules from "./pages/admin/ManageSchedules";
 import ViewBookings from "./pages/admin/ViewBookings";
 import ManageUsers from "./pages/admin/ManageUsers";
 import DriverDashboard from "./pages/driver/DriverDashboard";
+import ProfileDashboard from "./pages/ProfileDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -36,6 +37,7 @@ const App = () => (
             <Route path="/search" element={<Search />} />
             <Route path="/book/schedule/:scheduleId" element={<Book />} />
             <Route path="/my-bookings" element={<MyBookings />} />
+            <Route path="/profile" element={<ProfileDashboard />} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/buses" element={<ManageBuses />} />
             <Route path="/admin/routes" element={<ManageRoutes />} />

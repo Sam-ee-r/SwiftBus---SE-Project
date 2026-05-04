@@ -1,22 +1,20 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Navbar } from '@/components/layout/Navbar';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
-import { Bus, MapPin, Calendar, Clock, Ticket, Loader2, AlertCircle } from 'lucide-react';
 import { format, parseISO, isBefore, startOfDay } from 'date-fns';
+import { PassengerNav } from '@/components/PassengerNav';
 
-interface Booking {
+interface SingleBooking {
   id: string;
-  seat_no: number;
+  schedule_id: string;
   status: string;
   travel_date: string;
-  departure_time?: string | null;
   booking_date: string;
+  departure_time: string | null;
+  seat_no: number;
+  payment: any;
   bus: {
     id: string;
     bus_no: string;
@@ -28,10 +26,18 @@ interface Booking {
   };
 }
 
+const formatTime = (timeStr: string) => {
+  if (!timeStr) return 'N/A';
+  const [h, m] = timeStr.split(':').map(Number);
+  const date = new Date();
+  date.setHours(h, m, 0);
+  return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+}
+
 export default function MyBookings() {
-  const { user, loading: authLoading, isAdmin } = useAuth();
+  const { user, loading: authLoading, isAdmin, isDriver } = useAuth();
   const navigate = useNavigate();
-  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [bookings, setBookings] = useState<SingleBooking[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -43,10 +49,14 @@ export default function MyBookings() {
       navigate('/admin');
       return;
     }
+    if (!authLoading && user && isDriver) {
+      navigate('/driver');
+      return;
+    }
     if (user) {
       fetchBookings();
     }
-  }, [user, authLoading]);
+  }, [user, isAdmin, isDriver, authLoading, navigate]);
 
   const fetchBookings = async () => {
     try {
@@ -66,20 +76,17 @@ export default function MyBookings() {
 
       if (error) throw error;
 
-      // If there are no bookings, set empty
       if (!data || data.length === 0) {
         setBookings([]);
         return;
       }
 
-      // Fetch schedules referenced by bookings
-      const scheduleIds = (data || []).map((b: any) => b.schedule_id).filter(Boolean);
+      const scheduleIds = [...new Set((data || []).map((b: any) => b.schedule_id).filter(Boolean))];
       const { data: schedulesData } = await supabase
         .from('schedules')
         .select('id, travel_date, departure_time, arrival_time, seat_price, bus:buses(id, bus_no), route:routes(id, departure, destination, distance_km)')
         .in('id', scheduleIds.length ? scheduleIds : ['']);
 
-      // Map data together on client
       const bookingsWithDetails = (data || []).map((booking: any) => {
         const schedule = schedulesData?.find((s: any) => s.id === booking.schedule_id);
         const bus = schedule?.bus;
@@ -87,11 +94,14 @@ export default function MyBookings() {
         const payment = booking.payments && booking.payments.length ? booking.payments[0] : null;
 
         return {
-          ...booking,
+          id: booking.id,
+          schedule_id: booking.schedule_id,
+          status: booking.status,
           travel_date: booking.travel_date || schedule?.travel_date,
+          booking_date: booking.booking_date,
           departure_time: schedule?.departure_time ?? null,
+          seat_no: booking.seat_no,
           payment: payment,
-          seat_price: schedule?.seat_price ?? null,
           bus: {
             id: bus?.id,
             bus_no: bus?.bus_no || '',
@@ -100,7 +110,7 @@ export default function MyBookings() {
         };
       });
 
-      setBookings(bookingsWithDetails as unknown as Booking[]);
+      setBookings(bookingsWithDetails as SingleBooking[]);
     } catch (error: any) {
       console.error('Error fetching bookings:', error);
       toast.error(`Failed to load bookings: ${error.message}`);
@@ -125,139 +135,152 @@ export default function MyBookings() {
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'confirmed':
-        return <Badge className="bg-success text-success-foreground">Confirmed</Badge>;
-      case 'cancelled':
-        return <Badge variant="destructive">Cancelled</Badge>;
-      case 'pending':
-        return <Badge className="bg-warning text-warning-foreground">Pending</Badge>;
-      default:
-        return <Badge variant="secondary">{status}</Badge>;
-    }
-  };
-
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <div className="flex h-[60vh] items-center justify-center">
-          <Loader2 className="h-12 w-12 animate-spin text-accent" />
-        </div>
+      <div className="bg-deep-space text-on-surface min-h-screen flex items-center justify-center">
+        <span className="material-symbols-outlined animate-spin text-[48px] text-electric-violet">sync</span>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar />
+    <div className="bg-deep-space text-on-surface font-body-md antialiased min-h-screen relative overflow-x-hidden selection:bg-electric-violet selection:text-white">
+      <PassengerNav />
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-foreground md:text-3xl">My Bookings</h1>
-          <p className="mt-2 text-muted-foreground">View and manage your bus reservations</p>
-        </div>
+      {/* Main Content */}
+      <main className="relative z-10 pt-[80px] pb-[100px] md:pb-8 px-4 md:px-margin max-w-7xl mx-auto">
+        {/* Header */}
+        <header className="mb-lg">
+          <h1 className="font-h1 text-4xl md:text-5xl font-bold text-on-surface mb-2">My Bookings</h1>
+          <p className="font-body-lg text-lg text-on-surface-variant">View and manage your upcoming travel.</p>
+        </header>
 
         {bookings.length === 0 ? (
-          <Card className="border-border/50 shadow-soft">
-            <CardContent className="py-16 text-center">
-              <Ticket className="mx-auto mb-4 h-16 w-16 text-muted-foreground/50" />
-              <h2 className="text-xl font-medium text-muted-foreground">No bookings yet</h2>
-              <p className="mt-2 text-sm text-muted-foreground/70">
-                Start by searching for buses and booking your seats
-              </p>
-              <Button variant="accent" className="mt-6" onClick={() => navigate('/search')}>
-                Search Buses
-              </Button>
-            </CardContent>
-          </Card>
+          <div className="flex flex-col items-center justify-center py-20 text-center opacity-80 bg-surface-container/30 backdrop-blur-md rounded-xl border border-white/5">
+            <span className="material-symbols-outlined text-[64px] text-outline-variant mb-4">confirmation_number</span>
+            <h2 className="text-xl font-medium text-white">No bookings yet</h2>
+            <p className="text-on-surface-variant mt-2">Start your journey by searching for available routes.</p>
+            <button 
+              onClick={() => navigate('/search')}
+              className="mt-6 px-6 py-3 rounded-lg font-label-md bg-electric-violet text-white hover:bg-electric-violet/90 active:scale-95 transition-all shadow-[0_0_15px_rgba(138,117,240,0.3)] flex items-center gap-2"
+            >
+              <span className="material-symbols-outlined">search</span>
+              Search Buses
+            </button>
+          </div>
         ) : (
-          <div className="space-y-4">
+          /* Booking Cards Grid */
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-md">
             {bookings.map((booking) => {
               const isPast = isBefore(parseISO(booking.travel_date), startOfDay(new Date()));
               const isCancelled = booking.status === 'cancelled';
+              const isPending = booking.status === 'pending';
+              const isConfirmed = booking.status === 'confirmed';
 
               return (
-                <Card key={booking.id} className="border-border/50 shadow-soft overflow-hidden">
-                  <CardContent className="p-0">
-                    <div className="flex flex-col md:flex-row">
-                      <div className="flex-1 p-6">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <div className="mb-2 flex items-center gap-3">
-                              <Bus className="h-5 w-5 text-primary" />
-                              <span className="font-semibold text-foreground">{booking.bus.bus_no}</span>
-                              {getStatusBadge(booking.status)}
-                            </div>
-                            {booking.bus.route && (
-                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <MapPin className="h-4 w-4" />
-                                <span>{booking.bus.route.departure} → {booking.bus.route.destination}</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-                          <div className="flex items-center gap-1">
-                            <Calendar className="h-4 w-4" />
-                            <span>{format(parseISO(booking.travel_date), 'MMM d, yyyy')}</span>
-                            {booking.departure_time && (
-                              <span className="mx-2">•</span>
-                            )}
-                            {booking.departure_time && (
-                              <div className="flex items-center gap-1">
-                                <Clock className="h-4 w-4" />
-                                <span>{String(booking.departure_time).slice(0, 5)}</span>
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Ticket className="h-4 w-4" />
-                            <span>Seat #{booking.seat_no}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Clock className="h-4 w-4" />
-                            <span>Booked {format(parseISO(booking.booking_date), 'MMM d, yyyy')}</span>
-                          </div>
-                        </div>
-                        <div className="mt-4 text-sm text-muted-foreground">
-                          <div>Booking ID: <span className="font-medium text-foreground">{booking.id}</span></div>
-                          {booking.payment && (
-                            <div className="mt-1">Payment: <span className="font-medium text-foreground">Rs. {Number(booking.payment.amount).toFixed(2)}</span> (<span className="capitalize">{booking.payment.status}</span>)</div>
-                          )}
-                          {booking.seat_price != null && !booking.payment && (
-                            <div className="mt-1">Price: <span className="font-medium text-foreground">Rs. {Number(booking.seat_price).toFixed(2)}</span></div>
-                          )}
-                        </div>
+                <article 
+                  key={booking.id}
+                  className={`bg-surface-container/60 backdrop-blur-md rounded-xl border p-md flex flex-col gap-md relative overflow-hidden group transition-all duration-300 ${
+                    isCancelled ? 'opacity-70 border-white/5 hover:opacity-100' : 'border-white/10 hover:border-electric-violet/30'
+                  }`}
+                >
+                  {/* Subtle glow effect on hover */}
+                  {!isCancelled && (
+                    <div className="absolute inset-0 bg-gradient-to-br from-electric-violet/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+                  )}
+                  
+                  <div className="flex justify-between items-start z-10">
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className={`material-symbols-outlined text-xl ${isCancelled ? 'text-outline' : 'text-electric-violet'}`}>
+                          directions_bus
+                        </span>
+                        <span className="font-label-md text-sm font-semibold tracking-wide text-on-surface-variant uppercase">
+                          {booking.bus.bus_no}
+                        </span>
                       </div>
-
-                      <div className="flex items-center justify-center border-t border-border/50 bg-muted/30 p-6 md:border-l md:border-t-0">
-                        {!isCancelled && !isPast && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleCancelBooking(booking.id)}
-                          >
-                            Cancel Booking
-                          </Button>
-                        )}
-                        {isPast && !isCancelled && (
-                          <span className="text-sm text-muted-foreground">Trip completed</span>
-                        )}
-                        {isCancelled && (
-                          <span className="text-sm text-destructive">Cancelled</span>
-                        )}
-                      </div>
+                      <h2 className={`font-h3 text-2xl font-semibold text-on-surface ${isCancelled ? 'line-through text-on-surface-variant' : ''}`}>
+                        {booking.bus.route?.departure} to {booking.bus.route?.destination}
+                      </h2>
                     </div>
-                  </CardContent>
-                </Card>
+                    
+                    {isConfirmed && (
+                      <span className="bg-emerald-spark/20 text-emerald-spark font-label-sm text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full border border-emerald-spark/30">
+                        Confirmed
+                      </span>
+                    )}
+                    {isCancelled && (
+                      <span className="bg-error/10 text-error font-label-sm text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full border border-error/20">
+                        Cancelled
+                      </span>
+                    )}
+                    {isPending && (
+                      <span className="bg-tertiary/20 text-tertiary font-label-sm text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full border border-tertiary/30">
+                        Pending
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-sm z-10 bg-surface-container-lowest/50 rounded-lg p-sm border border-white/5">
+                    <div>
+                      <p className="font-label-sm text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-1">Date</p>
+                      <p className={`font-body-md text-base ${isCancelled ? 'text-on-surface-variant' : 'text-on-surface'}`}>
+                        {format(parseISO(booking.travel_date), 'MMM d, yyyy')}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="font-label-sm text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-1">Time</p>
+                      <p className={`font-body-md text-base ${isCancelled ? 'text-on-surface-variant' : 'text-on-surface'}`}>
+                        {formatTime(booking.departure_time || '')}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="font-label-sm text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-1">Seat</p>
+                      <p className={`font-body-md text-base font-semibold ${isCancelled ? 'text-on-surface-variant' : 'text-emerald-spark'}`}>
+                        {booking.seat_no}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="font-label-sm text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-1">Terminal</p>
+                      <p className={`font-body-md text-base ${isCancelled ? 'text-on-surface-variant' : 'text-on-surface'}`}>
+                        Main Hub
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-3 mt-auto z-10">
+                    {!isCancelled && !isPast && (
+                      <button 
+                        onClick={() => handleCancelBooking(booking.id)}
+                        className="px-4 py-2 rounded-lg font-label-md text-sm font-semibold text-on-surface-variant border border-outline-variant hover:bg-white/5 hover:text-white hover:border-white/20 active:scale-95 transition-all"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                    {isPast && !isCancelled && (
+                      <span className="px-4 py-2 font-label-md text-sm text-on-surface-variant">
+                        Trip Completed
+                      </span>
+                    )}
+                    {!isCancelled && (
+                      <button className="px-4 py-2 rounded-lg font-label-md text-sm font-semibold bg-electric-violet text-white hover:bg-electric-violet/90 active:scale-95 transition-all shadow-[0_0_15px_rgba(138,117,240,0.3)]">
+                        View Ticket
+                      </button>
+                    )}
+                    {isCancelled && (
+                      <button className="px-4 py-2 rounded-lg font-label-md text-sm font-semibold text-on-surface-variant bg-surface-container hover:bg-surface-bright active:scale-95 transition-all">
+                        Details
+                      </button>
+                    )}
+                  </div>
+                </article>
               );
             })}
           </div>
         )}
-      </div>
+      </main>
+
+
     </div>
   );
 }
