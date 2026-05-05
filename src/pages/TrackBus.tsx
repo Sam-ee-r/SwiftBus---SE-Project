@@ -28,28 +28,12 @@ const busIcon = L.divIcon({
   iconAnchor: [20, 20]
 });
 
-const cityCoords: Record<string, [number, number]> = {
-  'Karachi': [24.8607, 67.0011],
-  'Lahore': [31.5204, 74.3587],
-  'Islamabad': [33.6844, 73.0479],
-  'Rawalpindi': [33.5909, 73.0435],
-  'Faisalabad': [31.4504, 73.1350],
-  'Multan': [30.1575, 71.5249],
-  'Hyderabad': [25.3960, 68.3578],
-  'Peshawar': [34.0151, 71.5249],
-  'Quetta': [30.1798, 66.9750],
-  'Sialkot': [32.4925, 74.5310],
-  'Gujranwala': [32.1617, 74.1883],
-  'Bahawalpur': [29.3957, 71.6833],
-  'Sargodha': [32.0740, 72.6861],
-  'Abbottabad': [34.1495, 73.2114],
-  'Mardan': [34.1989, 72.0404],
-  'Swat': [35.2227, 72.4258],
-  'Muzaffarabad': [34.3700, 73.4710],
-  'Gilgit': [35.9200, 74.3137],
-  'Sukkur': [27.7140, 68.8529],
-  'Larkana': [27.5590, 68.2228]
-};
+import { CITY_COORDS as CITY_COORDS_LNG_LAT } from '@/lib/constants';
+
+// Leaflet needs [lat, lng]; constants store [lng, lat] — flip here
+const cityCoords: Record<string, [number, number]> = Object.fromEntries(
+  Object.entries(CITY_COORDS_LNG_LAT).map(([code, [lng, lat]]) => [code, [lat, lng]])
+);
 
 // Component to dynamically fit bounds when route is loaded
 function MapBounds({ bounds }: { bounds: L.LatLngBoundsExpression | null }) {
@@ -399,7 +383,7 @@ export default function TrackBus() {
 
       {/* Map Area */}
       <div className="flex-1 h-[60vh] md:h-screen relative z-10 order-1 md:order-2 bg-[#1a1c23]">
-        <MapContainer center={currentPos || cityCoords['Karachi']} zoom={6} className="w-full h-full" zoomControl={false}>
+        <MapContainer center={currentPos || cityCoords['KHI']} zoom={6} className="w-full h-full" zoomControl={false}>
           <TileLayer
             url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'

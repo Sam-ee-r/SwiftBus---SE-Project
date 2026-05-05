@@ -248,7 +248,7 @@ export default function MyBookings() {
                     <div>
                       <p className="font-label-sm text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-1">Date</p>
                       <p className={`font-body-md text-base ${isCancelled ? 'text-on-surface-variant' : 'text-on-surface'}`}>
-                        {format(parseISO(booking.travel_date), 'MMM d, yyyy')}
+                        {format(parseISO(booking.travel_date), 'dd-MM-yyyy')}
                       </p>
                     </div>
                     <div>

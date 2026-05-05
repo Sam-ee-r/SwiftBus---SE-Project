@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { SwiftBusLogo } from '@/components/SwiftBusLogo';
 import { useAuth } from '@/hooks/useAuth';
 import { useEffect, useState } from 'react';
 import { PassengerNav } from '@/components/PassengerNav';
@@ -281,9 +281,7 @@ const Index = () => {
       <footer className="bg-slate-950 w-full py-12 px-6 md:px-12 border-t border-white/5 relative z-50">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 max-w-7xl mx-auto">
           <div className="flex flex-col gap-3 md:col-span-1">
-            <div className="font-['Space_Grotesk'] text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-emerald-400">
-              SwiftBus
-            </div>
+            <SwiftBusLogo size="lg" />
             <p className="text-sm text-slate-500 leading-relaxed">
               Pakistan's trusted inter-city bus booking platform. Safe, affordable, and on time.
             </p>

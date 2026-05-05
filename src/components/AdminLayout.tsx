@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, ReactNode } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { SwiftBusLogo } from '@/components/SwiftBusLogo';
 import { format } from 'date-fns';
 import { ThemeToggle } from '@/components/ThemeToggle';
 
@@ -196,7 +197,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               <span className="material-symbols-outlined text-primary">directions_bus</span>
             </div>
             <div>
-              <h2 className="font-h3 text-base text-white m-0">SwiftBus</h2>
+              <SwiftBusLogo size="md" />
               <p className="font-label-sm text-[10px] uppercase tracking-widest text-slate-500">Management Portal</p>
             </div>
           </div>

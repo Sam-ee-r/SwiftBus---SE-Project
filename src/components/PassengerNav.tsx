@@ -3,6 +3,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
+import { SwiftBusLogo } from '@/components/SwiftBusLogo';
 import { ThemeToggle } from '@/components/ThemeToggle';
 
 interface Notification {
@@ -100,12 +101,7 @@ export function PassengerNav() {
       <nav className="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-xl border-b border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.4)] hidden md:flex">
         <div className="flex justify-between items-center h-16 px-6 md:px-12 w-full max-w-[1440px] mx-auto">
           {/* Logo */}
-          <div
-            className="font-['Space_Grotesk'] text-2xl font-bold bg-gradient-to-r from-violet-400 to-emerald-400 bg-clip-text text-transparent cursor-pointer select-none"
-            onClick={() => navigate('/')}
-          >
-            SwiftBus
-          </div>
+          <SwiftBusLogo size="md" clickable />
 
           {/* Center Nav Links */}
           <div className="flex items-center gap-1">
@@ -215,7 +211,7 @@ export function PassengerNav() {
           className="font-['Space_Grotesk'] text-xl font-bold bg-gradient-to-r from-violet-400 to-emerald-400 bg-clip-text text-transparent cursor-pointer"
           onClick={() => navigate('/')}
         >
-          SwiftBus
+            <SwiftBusLogo size="lg" clickable />
         </div>
         {!user && (
           <button

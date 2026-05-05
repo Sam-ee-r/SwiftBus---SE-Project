@@ -283,7 +283,7 @@ export default function ManageBuses() {
                                 <div className={`h-full ${barColor} rounded-full transition-all`} style={{ width: `${pct}%` }} />
                               </div>
                               {bus.last_serviced_at && (
-                                <p className="text-[10px] text-slate-600 mt-1">Last: {new Date(bus.last_serviced_at).toLocaleDateString('en-PK', { day:'numeric', month:'short', year:'numeric' })}</p>
+                                <p className="text-[10px] text-slate-600 mt-1">Last: {new Date(bus.last_serviced_at).toLocaleDateString('en-PK', { day: '2-digit', month: '2-digit', year: 'numeric' }).split('/').join('-')}</p>
                               )}
                             </div>
                           );

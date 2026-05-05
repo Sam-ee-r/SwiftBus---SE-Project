@@ -3,15 +3,11 @@ import { useAuth } from '@/hooks/useAuth';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
+import { format, addDays } from 'date-fns';
 import { PassengerNav } from '@/components/PassengerNav';
+import { PAKISTAN_CITIES, CITY_NAMES } from '@/lib/constants';
 
-const PAKISTAN_CITIES = [
-  'Karachi', 'Lahore', 'Islamabad', 'Rawalpindi', 'Faisalabad',
-  'Multan', 'Hyderabad', 'Peshawar', 'Quetta', 'Sialkot',
-  'Gujranwala', 'Bahawalpur', 'Sargodha', 'Abbottabad', 'Mardan',
-  'Swat', 'Muzaffarabad', 'Gilgit', 'Sukkur', 'Larkana',
-];
+
 
 interface Schedule {
   id: string;
@@ -55,7 +51,7 @@ export default function SearchPage() {
 
   const [from, setFrom] = useState(qp.get('from') || '');
   const [to, setTo] = useState(qp.get('to') || '');
-  const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [date, setDate] = useState(format(addDays(new Date(), 1), 'yyyy-MM-dd'));
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
@@ -92,7 +88,8 @@ export default function SearchPage() {
         .from('schedules')
         .select('id, departure_time, arrival_time, travel_date, seat_price, bus:buses(id, bus_no, capacity), route:routes(id, departure, destination, distance_km)')
         .in('route_id', matched.map((r: any) => r.id))
-        .eq('travel_date', d);
+        .eq('travel_date', d)
+        .neq('status', 'completed');
 
       if (error) throw error;
       setSchedules(data || []);
@@ -130,7 +127,11 @@ export default function SearchPage() {
                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px] pointer-events-none">my_location</span>
                 <select className={selectCls} value={from} onChange={e => setFrom(e.target.value)}>
                   <option value="" className="bg-slate-900">Any Origin</option>
-                  {PAKISTAN_CITIES.map(c => <option key={c} value={c} className="bg-slate-900">{c}</option>)}
+                  {PAKISTAN_CITIES.map(code => (
+                    <option key={code} value={code} className="bg-slate-900">
+                      {CITY_NAMES[code] ?? code}
+                    </option>
+                  ))}
                 </select>
                 <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 text-[18px] pointer-events-none">expand_more</span>
               </div>
@@ -143,7 +144,11 @@ export default function SearchPage() {
                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px] pointer-events-none">location_on</span>
                 <select className={selectCls} value={to} onChange={e => setTo(e.target.value)}>
                   <option value="" className="bg-slate-900">Any Destination</option>
-                  {PAKISTAN_CITIES.filter(c => c !== from).map(c => <option key={c} value={c} className="bg-slate-900">{c}</option>)}
+                  {PAKISTAN_CITIES.filter(c => c !== from).map(code => (
+                    <option key={code} value={code} className="bg-slate-900">
+                      {CITY_NAMES[code] ?? code}
+                    </option>
+                  ))}
                 </select>
                 <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 text-[18px] pointer-events-none">expand_more</span>
               </div>
@@ -191,7 +196,7 @@ export default function SearchPage() {
                 {to || 'All Destinations'}
               </h1>
               <p className="text-slate-400 mt-1.5 text-sm">
-                {format(new Date(date + 'T12:00:00'), 'EEEE, MMM d, yyyy')} &bull; {schedules.length} {schedules.length === 1 ? 'Trip' : 'Trips'} Available
+                {format(new Date(date + 'T12:00:00'), 'EEEE, dd-MM-yyyy')} &bull; {schedules.length} {schedules.length === 1 ? 'Trip' : 'Trips'} Available
               </p>
             </div>
             {/* Mobile filter toggle */}

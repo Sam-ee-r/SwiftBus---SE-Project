@@ -35,7 +35,7 @@ function getDateLabel(dateStr: string) {
   const d = new Date(dateStr + 'T00:00:00');
   if (isToday(d)) return 'Today';
   if (isTomorrow(d)) return 'Tomorrow';
-  return format(d, 'PPP');
+  return format(d, 'dd-MM-yyyy');
 }
 
 export default function DriverDashboard() {
@@ -294,7 +294,7 @@ export default function DriverDashboard() {
                     {Math.round(kmSinceService).toLocaleString()} / 10,000 km since last service &bull; {Math.round(totalKm).toLocaleString()} km total
                   </p>
                   {lastServicedAt && (
-                    <p className="text-xs text-slate-600 mt-0.5">Last serviced: {new Date(lastServicedAt).toLocaleDateString('en-PK', { day:'numeric', month:'short', year:'numeric' })}</p>
+                    <p className="text-xs text-slate-600 mt-0.5">Last serviced: {new Date(lastServicedAt).toLocaleDateString('en-PK', { day: '2-digit', month: '2-digit', year: 'numeric' }).split('/').join('-')}</p>
                   )}
                 </div>
               </div>
@@ -435,7 +435,7 @@ export default function DriverDashboard() {
                       <div>
                         <p className="font-bold text-white text-sm">{trip.route?.departure} → {trip.route?.destination}</p>
                         <p className="text-xs text-slate-500 mt-0.5">
-                          {format(new Date(trip.travel_date + 'T00:00:00'), 'MMM d, yyyy')} &bull; {trip.bus?.bus_no}
+                          {format(new Date(trip.travel_date + 'T00:00:00'), 'dd-MM-yyyy')} &bull; {trip.bus?.bus_no}
                         </p>
                       </div>
                     </div>

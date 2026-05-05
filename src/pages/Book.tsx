@@ -378,7 +378,7 @@ export default function BookPage() {
                 </div>
                 <div className="flex items-center gap-3 text-on-surface-variant font-body-md">
                   <span className="material-symbols-outlined text-[20px] text-outline">calendar_today</span>
-                  {format(parseISO(travelDate), 'EEEE, MMMM d, yyyy')}
+                  {format(parseISO(travelDate), 'EEEE, dd-MM-yyyy')}
                 </div>
               </div>
               
@@ -470,7 +470,7 @@ export default function BookPage() {
                 </div>
                 <div>
                   <p className="text-sm text-on-surface-variant">Travel Date</p>
-                  <p className="font-semibold text-white">{format(parseISO(bookingConfirmed.travel_date), 'EEEE, MMMM d, yyyy')}</p>
+                  <p className="font-semibold text-white">{format(parseISO(bookingConfirmed.travel_date), 'EEEE, dd-MM-yyyy')}</p>
                 </div>
                 <div>
                   <p className="text-sm text-on-surface-variant">Seats</p>

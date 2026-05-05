@@ -2,6 +2,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { Bus, User, LogOut, LayoutDashboard, Menu, X, Gauge } from 'lucide-react';
+import { SwiftBusLogo } from '@/components/SwiftBusLogo';
 import { useState } from 'react';
 import { ThemeToggle } from '@/components/ThemeToggle';
 
@@ -19,10 +20,7 @@ export function Navbar() {
     <nav className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-md">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         <Link to={isAdmin ? '/admin' : isDriver ? '/driver' : '/'} className="flex items-center gap-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary">
-            <Bus className="h-6 w-6 text-primary-foreground" />
-          </div>
-          <span className="text-xl font-bold text-foreground">SwiftBus</span>
+          <SwiftBusLogo size="md" />
         </Link>
 
         {/* Desktop Navigation */}
