@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { SwiftBusLogo } from '@/components/SwiftBusLogo';
+import { SupportWidget } from '@/components/SupportWidget';
 import { ThemeToggle } from '@/components/ThemeToggle';
 
 interface Notification {
@@ -109,6 +110,9 @@ export function PassengerNav() {
             <a className={linkCls('/search')} onClick={() => navigate('/search')}>Find Buses</a>
             {user && (
               <a className={linkCls('/my-bookings')} onClick={() => navigate('/my-bookings')}>My Bookings</a>
+            )}
+            {user && (
+              <a className={linkCls('/wallet')} onClick={() => navigate('/wallet')}>Wallet</a>
             )}
           </div>
 
@@ -284,9 +288,11 @@ export function PassengerNav() {
             )}
           </div>
 
+          <MobileNavBtn icon="account_balance_wallet" label="Wallet" active={isActive('/wallet')} onClick={() => navigate('/wallet')} fill />
           <MobileNavBtn icon="account_circle" label="Profile" active={isActive('/profile')} onClick={() => navigate('/profile')} fill />
         </nav>
       )}
+      <SupportWidget />
     </>
   );
 }

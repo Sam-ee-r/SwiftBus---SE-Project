@@ -7,6 +7,8 @@ type Step = 'select' | 'enter_details' | 'processing' | 'success';
 interface PaymentGatewayProps {
   amount: number;
   seats: number[];
+  walletBalance?: number;
+  onWalletPay?: () => void;
   onSuccess: (transactionId: string, provider: string) => void;
   onCancel: () => void;
 }
@@ -71,7 +73,7 @@ function EasypaisaLogo({ size = 40 }: { size?: number }) {
 }
 
 // ── Main Component ─────────────────────────────────────────────────────────────
-export function PaymentGateway({ amount, seats, onSuccess, onCancel }: PaymentGatewayProps) {
+export function PaymentGateway({ amount, seats, walletBalance = 0, onWalletPay, onSuccess, onCancel }: PaymentGatewayProps) {
   const [step, setStep] = useState<Step>('select');
   const [provider, setProvider] = useState<Provider>(null);
   const [mobileNumber, setMobileNumber] = useState('');
@@ -177,7 +179,37 @@ export function PaymentGateway({ amount, seats, onSuccess, onCancel }: PaymentGa
         </div>
 
         <div className="flex flex-col gap-3">
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest text-center">Select Payment Method</p>
+          {/* Wallet Option */}
+          {onWalletPay && walletBalance > 0 && (
+            <div className="mb-2">
+              <button
+                onClick={walletBalance >= amount ? onWalletPay : undefined}
+                disabled={walletBalance < amount}
+                className={`w-full group flex items-center gap-4 rounded-2xl border p-4 transition-all duration-300 active:scale-95 ${
+                  walletBalance >= amount
+                    ? 'border-electric-violet/30 bg-electric-violet/5 hover:border-electric-violet/50 hover:bg-electric-violet/10 hover:shadow-[0_0_30px_rgba(138,117,240,0.15)]'
+                    : 'border-white/5 bg-surface-container/20 opacity-50 cursor-not-allowed'
+                }`}
+              >
+                <div className="w-12 h-12 rounded-xl bg-electric-violet/20 border border-electric-violet/30 flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined text-electric-violet text-[24px]">account_balance_wallet</span>
+                </div>
+                <div className="flex-1 text-left">
+                  <p className="font-bold text-sm text-white group-hover:text-electric-violet transition-colors">SwiftBus Wallet</p>
+                  <p className="text-[10px] uppercase tracking-widest text-slate-500">
+                    Balance: PKR {walletBalance.toLocaleString()}
+                  </p>
+                </div>
+                {walletBalance >= amount ? (
+                  <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider bg-emerald-500/10 border border-emerald-500/20 px-2 py-1 rounded-full">Instant</span>
+                ) : (
+                  <span className="text-[10px] font-bold text-rose-400 uppercase tracking-wider">Low funds</span>
+                )}
+              </button>
+            </div>
+          )}
+
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest text-center">{onWalletPay && walletBalance > 0 ? 'Or pay with' : 'Select Payment Method'}</p>
           <div className="grid grid-cols-2 gap-4">
             <button
               onClick={() => handleSelectProvider('jazzcash')}

@@ -38,6 +38,7 @@ export default function BookPage() {
   const [bookingConfirmed, setBookingConfirmed] = useState<any>(null);
   const [paymentTxnId, setPaymentTxnId] = useState('');
   const [paymentProvider, setPaymentProvider] = useState('');
+  const [walletBalance, setWalletBalance] = useState(0);
 
   useEffect(() => {
     if (authLoading) return;
@@ -54,7 +55,18 @@ export default function BookPage() {
 
     fetchBusDetails();
     fetchBookedSeats();
+    fetchWalletBalance();
   }, [scheduleId, travelDate, user, authLoading, isAdmin, navigate]);
+
+  const fetchWalletBalance = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('profiles')
+      .select('wallet_balance')
+      .eq('id', user.id)
+      .single();
+    setWalletBalance(Number(data?.wallet_balance || 0));
+  };
 
   useEffect(() => {
     if (!scheduleId) return;
@@ -164,6 +176,32 @@ export default function BookPage() {
     setPaymentProvider(provider);
     setShowPayment(false);
     await handleBooking(txnId, provider);
+  };
+
+  const handleWalletPayment = async () => {
+    if (!user || walletBalance < totalPrice) return;
+    setShowPayment(false);
+
+    // Deduct from wallet
+    const newBalance = walletBalance - totalPrice;
+    await supabase
+      .from('profiles')
+      .update({ wallet_balance: newBalance })
+      .eq('id', user.id);
+
+    // Log wallet transaction
+    await supabase.from('wallet_transactions').insert({
+      user_id: user.id,
+      amount: totalPrice,
+      type: 'payment',
+      description: `Booking: ${bus?.route?.departure} → ${bus?.route?.destination} (${selectedSeats.length} seat${selectedSeats.length > 1 ? 's' : ''})`,
+    });
+
+    setWalletBalance(newBalance);
+    const txnId = `WLT-${Math.floor(10000 + Math.random() * 90000)}`;
+    setPaymentTxnId(txnId);
+    setPaymentProvider('wallet');
+    await handleBooking(txnId, 'wallet');
   };
 
   const handleBooking = async (txnId = '', provider = 'online') => {
@@ -458,6 +496,8 @@ export default function BookPage() {
           <PaymentGateway
             amount={totalPrice}
             seats={selectedSeats}
+            walletBalance={walletBalance}
+            onWalletPay={handleWalletPayment}
             onSuccess={handlePaymentSuccess}
             onCancel={() => setShowPayment(false)}
           />

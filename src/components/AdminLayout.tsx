@@ -27,6 +27,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
+  const [supportUnread, setSupportUnread] = useState(0);
 
   const handleSignOut = async () => {
     await signOut();
@@ -46,7 +47,16 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
   useEffect(() => {
     if (user) fetchNotifications();
+    fetchSupportUnread();
   }, [user]);
+
+  const fetchSupportUnread = async () => {
+    const { count } = await supabase
+      .from('support_tickets')
+      .select('*', { count: 'exact', head: true })
+      .eq('unread_by_admin', true);
+    setSupportUnread(count || 0);
+  };
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -219,6 +229,10 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                   <span className="material-symbols-outlined">confirmation_number</span>
                   <span>Bookings</span>
                 </Link>
+                <Link to="/admin/refunds" className={linkClass('/admin/refunds')}>
+                  <span className="material-symbols-outlined">request_quote</span>
+                  <span>Refunds</span>
+                </Link>
                 <Link to="/admin/schedules" className={linkClass('/admin/schedules')}>
                   <span className="material-symbols-outlined">calendar_month</span>
                   <span>Schedules</span>
@@ -252,6 +266,15 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                 <span className="material-symbols-outlined">group</span>
                 <span>Users</span>
               </Link>
+              <Link to="/admin/support" className={linkClass('/admin/support')}>
+                <span className="material-symbols-outlined">support_agent</span>
+                <span className="flex-1">Support</span>
+                {supportUnread > 0 && (
+                  <span className="bg-rose-500 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5 ml-auto">
+                    {supportUnread}
+                  </span>
+                )}
+              </Link>
             </li>
           </ul>
         </div>
@@ -284,6 +307,12 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         </Link>
         <Link to="/admin/bookings" className={`${isActive('/admin/bookings') ? 'text-primary' : 'text-slate-400'} flex flex-col items-center`}>
           <span className="material-symbols-outlined text-2xl">confirmation_number</span>
+        </Link>
+        <Link to="/admin/support" className={`${isActive('/admin/support') ? 'text-primary' : 'text-slate-400'} flex flex-col items-center relative`}>
+          <span className="material-symbols-outlined text-2xl">support_agent</span>
+          {supportUnread > 0 && (
+            <span className="absolute top-0 right-1 w-2 h-2 bg-rose-500 rounded-full"></span>
+          )}
         </Link>
       </nav>
     </div>
