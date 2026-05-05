@@ -1,16 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import {
-  Bus, MapPin, Clock, Calendar, LogOut, Loader2,
-  PlayCircle, CheckCircle2, ArrowRight, Gauge
-} from 'lucide-react';
-import { format, isToday, isTomorrow, isPast } from 'date-fns';
+import { format, isToday, isTomorrow } from 'date-fns';
 
 type TripStatus = 'scheduled' | 'in_transit' | 'completed';
 
@@ -32,10 +25,10 @@ interface Trip {
   } | null;
 }
 
-const STATUS_CONFIG: Record<TripStatus, { label: string; color: string; icon: React.ElementType }> = {
-  scheduled: { label: 'Scheduled', color: 'bg-muted text-muted-foreground border-border', icon: Calendar },
-  in_transit: { label: 'In Transit', color: 'bg-accent/10 text-accent border-accent/30', icon: Gauge },
-  completed: { label: 'Completed', color: 'bg-green-500/10 text-green-600 border-green-500/30', icon: CheckCircle2 },
+const STATUS_CONFIG: Record<TripStatus, { label: string; color: string; icon: string }> = {
+  scheduled: { label: 'Scheduled', color: 'bg-surface-container/50 text-slate-300 border-white/10', icon: 'calendar_month' },
+  in_transit: { label: 'In Transit', color: 'bg-emerald-spark/10 text-emerald-spark border-emerald-spark/20', icon: 'speed' },
+  completed: { label: 'Completed', color: 'bg-primary/10 text-primary border-primary/20', icon: 'check_circle' },
 };
 
 function getDateLabel(dateStr: string) {
@@ -173,52 +166,58 @@ export default function DriverDashboard() {
 
   if (authLoading || loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-background">
-        <Loader2 className="h-12 w-12 animate-spin text-accent" />
+      <div className="bg-background text-on-surface min-h-screen flex items-center justify-center">
+        <span className="material-symbols-outlined animate-spin text-[48px] text-electric-violet">sync</span>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="bg-background text-on-background font-body-md min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_50%_0%,_rgba(30,27,46,1)_0%,_rgba(20,18,26,1)_100%)]">
+      {/* Decorative Background Elements */}
+      <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-electric-violet/5 rounded-full blur-[120px] pointer-events-none -z-10"></div>
+      <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-emerald-spark/5 rounded-full blur-[100px] pointer-events-none -z-10"></div>
+
       {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-border bg-card/80 backdrop-blur-md">
-        <div className="container mx-auto flex h-16 items-center justify-between px-4">
+      <header className="bg-surface/80 backdrop-blur-xl sticky top-0 z-50 border-b border-white/5 shadow-lg">
+        <div className="container mx-auto max-w-5xl flex h-16 items-center justify-between px-4 md:px-8">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent">
-              <Bus className="h-5 w-5 text-white" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-electric-violet/20 border border-electric-violet/30 shadow-inner">
+              <span className="material-symbols-outlined text-[20px] text-electric-violet">directions_bus</span>
             </div>
             <div>
-              <p className="font-bold text-foreground">Driver Portal</p>
-              <p className="text-xs text-muted-foreground">{driverName || user?.email}</p>
+              <p className="font-h3 text-white leading-tight">Driver Portal</p>
+              <p className="font-label-sm text-[10px] uppercase tracking-widest text-slate-400">{driverName || user?.email}</p>
             </div>
           </div>
-          <Button variant="ghost" size="sm" onClick={async () => { await signOut(); navigate('/'); }}>
-            <LogOut className="mr-2 h-4 w-4" />
-            Sign Out
-          </Button>
+          <button 
+            onClick={async () => { await signOut(); navigate('/'); }}
+            className="flex items-center gap-2 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 px-3 py-2 rounded-lg transition-colors font-medium text-sm active:scale-95"
+          >
+            <span className="material-symbols-outlined text-[18px]">logout</span>
+            <span className="hidden sm:inline">Sign Out</span>
+          </button>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 space-y-8">
+      <main className="container mx-auto max-w-5xl px-4 md:px-8 py-8 space-y-10 relative z-10">
         {trips.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-24 text-center">
-            <Bus className="mb-4 h-16 w-16 text-muted-foreground/40" />
+          <div className="flex flex-col items-center justify-center py-24 text-center bg-surface-container/30 backdrop-blur-md rounded-2xl border border-white/5">
+            <span className="material-symbols-outlined text-[64px] text-slate-500/30 mb-4">directions_bus</span>
             {fetchError ? (
               <>
-                <h2 className="text-xl font-semibold text-destructive">Could not load trips</h2>
-                <p className="mt-2 max-w-sm text-sm text-muted-foreground">Database error: <span className="font-mono">{fetchError}</span></p>
-                <p className="mt-1 text-xs text-muted-foreground">Make sure you have run the status column migration in Supabase SQL Editor.</p>
+                <h2 className="text-xl font-semibold text-rose-400">Could not load trips</h2>
+                <p className="mt-2 max-w-sm text-sm text-slate-400">Database error: <span className="font-mono text-xs">{fetchError}</span></p>
               </>
             ) : noBusAssigned ? (
               <>
-                <h2 className="text-xl font-semibold text-foreground">No bus assigned</h2>
-                <p className="mt-2 text-sm text-muted-foreground">Ask your admin to assign you a bus in the Manage Drivers panel.</p>
+                <h2 className="text-2xl font-h2 text-white mb-2">No bus assigned</h2>
+                <p className="text-slate-400">Please contact the administrator to be assigned a vehicle.</p>
               </>
             ) : (
               <>
-                <h2 className="text-xl font-semibold text-foreground">No upcoming trips</h2>
-                <p className="mt-2 text-sm text-muted-foreground">You have no scheduled trips for today or upcoming days.</p>
+                <h2 className="text-2xl font-h2 text-white mb-2">You're all caught up</h2>
+                <p className="text-slate-400">There are no upcoming scheduled trips for your assigned bus.</p>
               </>
             )}
           </div>
@@ -227,12 +226,16 @@ export default function DriverDashboard() {
             {/* Today's Trips */}
             {todayTrips.length > 0 && (
               <section>
-                <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
-                  <Clock className="h-5 w-5 text-accent" />
-                  Today's Trips
-                  <Badge variant="outline" className="ml-1 text-accent border-accent/30">{todayTrips.length}</Badge>
-                </h2>
-                <div className="space-y-4">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-2 rounded-lg bg-emerald-spark/10 border border-emerald-spark/20">
+                    <span className="material-symbols-outlined text-emerald-spark text-[20px]">schedule</span>
+                  </div>
+                  <h2 className="font-h2 text-2xl text-white tracking-tight">Today's Trips</h2>
+                  <span className="font-label-sm text-xs bg-surface-container px-2.5 py-1 rounded-full text-slate-300 border border-white/10">
+                    {todayTrips.length}
+                  </span>
+                </div>
+                <div className="grid gap-4">
                   {todayTrips.map((trip) => (
                     <TripCard key={trip.id} trip={trip} onUpdateStatus={updateStatus} updatingId={updatingId} />
                   ))}
@@ -243,11 +246,13 @@ export default function DriverDashboard() {
             {/* Upcoming Trips */}
             {upcomingTrips.length > 0 && (
               <section>
-                <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
-                  <Calendar className="h-5 w-5 text-primary" />
-                  Upcoming Trips
-                </h2>
-                <div className="space-y-4">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-2 rounded-lg bg-electric-violet/10 border border-electric-violet/20">
+                    <span className="material-symbols-outlined text-electric-violet text-[20px]">event</span>
+                  </div>
+                  <h2 className="font-h2 text-2xl text-white tracking-tight">Upcoming Trips</h2>
+                </div>
+                <div className="grid gap-4">
                   {upcomingTrips.map((trip) => (
                     <TripCard key={trip.id} trip={trip} onUpdateStatus={updateStatus} updatingId={updatingId} />
                   ))}
@@ -275,78 +280,87 @@ function TripCard({
   const dateLabel = getDateLabel(trip.travel_date);
 
   return (
-    <Card className="border-border/50 shadow-soft overflow-hidden">
-      <CardContent className="p-0">
-        <div className="flex flex-col md:flex-row">
-          {/* Trip Info */}
-          <div className="flex-1 p-6">
-            <div className="mb-3 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Bus className="h-4 w-4 text-primary" />
-                <span className="font-semibold text-foreground">{trip.bus?.bus_no ?? 'Unknown Bus'}</span>
-              </div>
-              <Badge variant="outline" className={statusCfg.color}>
-                <statusCfg.icon className="mr-1 h-3 w-3" />
-                {statusCfg.label}
-              </Badge>
-            </div>
-
-            {trip.route && (
-              <div className="flex items-center gap-2 text-base font-medium text-foreground mb-2">
-                <span>{trip.route.departure}</span>
-                <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                <span>{trip.route.destination}</span>
-              </div>
-            )}
-
-            <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <Clock className="h-3.5 w-3.5" />
-                {trip.departure_time} → {trip.arrival_time}
-              </span>
-              <span className="flex items-center gap-1">
-                <Calendar className="h-3.5 w-3.5" />
-                {dateLabel}
-              </span>
-              {trip.route && (
-                <span className="flex items-center gap-1">
-                  <MapPin className="h-3.5 w-3.5" />
-                  {trip.route.distance_km} km
-                </span>
-              )}
-            </div>
+    <div className="bg-surface-container/40 backdrop-blur-xl border border-white/5 rounded-2xl overflow-hidden group hover:border-electric-violet/30 transition-all shadow-lg flex flex-col md:flex-row relative">
+      <div className="absolute inset-0 bg-gradient-to-br from-electric-violet/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+      
+      {/* Trip Info */}
+      <div className="flex-1 p-6 relative z-10">
+        <div className="mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-[16px] text-electric-violet">directions_bus</span>
+            <span className="font-label-md text-sm text-slate-300 font-semibold tracking-wide uppercase">{trip.bus?.bus_no ?? 'Unknown Bus'}</span>
           </div>
-
-          {/* Action Panel */}
-          <div className="flex flex-col items-center justify-center gap-3 border-t border-border/50 bg-muted/20 p-6 md:border-l md:border-t-0 md:w-48">
-            {trip.status === 'scheduled' && (
-              <Button
-                variant="accent"
-                className="w-full"
-                disabled={isUpdating}
-                onClick={() => onUpdateStatus(trip.id, 'in_transit')}
-              >
-                {isUpdating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlayCircle className="mr-2 h-4 w-4" />}
-                Start Trip
-              </Button>
-            )}
-            {trip.status === 'in_transit' && (
-              <Button
-                variant="default"
-                className="w-full bg-green-600 hover:bg-green-700 text-white"
-                disabled={isUpdating}
-                onClick={() => onUpdateStatus(trip.id, 'completed')}
-              >
-                {isUpdating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
-                End Trip
-              </Button>
-            )}
-            {trip.status === 'completed' && (
-              <p className="text-sm text-muted-foreground text-center">Trip completed</p>
-            )}
+          <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase border ${statusCfg.color}`}>
+            <span className="material-symbols-outlined text-[14px]">{statusCfg.icon}</span>
+            {statusCfg.label}
           </div>
         </div>
-      </CardContent>
-    </Card>
+
+        {trip.route && (
+          <div className="flex items-center gap-3 text-lg md:text-xl font-h2 text-white mb-4">
+            <span>{trip.route.departure}</span>
+            <span className="material-symbols-outlined text-slate-500 text-[20px]">arrow_forward</span>
+            <span>{trip.route.destination}</span>
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-center gap-5 text-sm text-slate-400 font-medium">
+          <span className="flex items-center gap-1.5 bg-surface-container px-2 py-1 rounded-md border border-white/5">
+            <span className="material-symbols-outlined text-[16px] text-slate-500">schedule</span>
+            {trip.departure_time} → {trip.arrival_time}
+          </span>
+          <span className="flex items-center gap-1.5 bg-surface-container px-2 py-1 rounded-md border border-white/5">
+            <span className="material-symbols-outlined text-[16px] text-slate-500">event</span>
+            {dateLabel}
+          </span>
+          {trip.route && (
+            <span className="flex items-center gap-1.5 bg-surface-container px-2 py-1 rounded-md border border-white/5">
+              <span className="material-symbols-outlined text-[16px] text-slate-500">route</span>
+              {trip.route.distance_km} km
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Action Panel */}
+      <div className="flex flex-col items-center justify-center p-6 bg-surface-container-high/30 border-t md:border-t-0 md:border-l border-white/5 md:w-56 relative z-10">
+        {trip.status === 'scheduled' && (
+          <button
+            disabled={isUpdating}
+            onClick={() => onUpdateStatus(trip.id, 'in_transit')}
+            className="w-full bg-electric-violet hover:bg-[#7e6be0] text-white font-semibold py-3 px-4 rounded-xl transition-all shadow-[0_0_15px_hsla(255,65%,60%,0.2)] hover:shadow-[0_0_20px_hsla(255,65%,60%,0.4)] flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
+          >
+            {isUpdating ? (
+              <span className="material-symbols-outlined animate-spin text-[20px]">sync</span>
+            ) : (
+              <span className="material-symbols-outlined text-[20px]">play_circle</span>
+            )}
+            Start Trip
+          </button>
+        )}
+        {trip.status === 'in_transit' && (
+          <button
+            disabled={isUpdating}
+            onClick={() => onUpdateStatus(trip.id, 'completed')}
+            className="w-full bg-emerald-spark hover:bg-emerald-500 text-surface-container-lowest font-semibold py-3 px-4 rounded-xl transition-all shadow-[0_0_15px_hsla(160,100%,40%,0.2)] hover:shadow-[0_0_20px_hsla(160,100%,40%,0.4)] flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
+          >
+            {isUpdating ? (
+              <span className="material-symbols-outlined animate-spin text-[20px]">sync</span>
+            ) : (
+              <span className="material-symbols-outlined text-[20px]">check_circle</span>
+            )}
+            End Trip
+          </button>
+        )}
+        {trip.status === 'completed' && (
+          <div className="flex flex-col items-center text-center">
+            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-2">
+              <span className="material-symbols-outlined text-primary text-[24px]">task_alt</span>
+            </div>
+            <p className="text-sm font-medium text-slate-300">Trip Completed</p>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

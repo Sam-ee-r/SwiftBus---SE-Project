@@ -1,16 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { ArrowLeft, Plus, Pencil, Trash2, UserCog, Loader2, Phone, CreditCard, Link2 } from 'lucide-react';
+import { AdminLayout } from '@/components/AdminLayout';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 interface Bus {
   id: string;
@@ -53,6 +47,7 @@ export default function ManageDrivers() {
     user_id: '',
   });
   const [submitting, setSubmitting] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     if (!authLoading && (!user || !isAdmin)) {
@@ -64,7 +59,7 @@ export default function ManageDrivers() {
       fetchBuses();
       fetchDriverUsers();
     }
-  }, [user, isAdmin, authLoading]);
+  }, [user, isAdmin, authLoading, navigate]);
 
   const fetchData = async () => {
     try {
@@ -107,7 +102,6 @@ export default function ManageDrivers() {
 
   const fetchDriverUsers = async () => {
     try {
-      // Get all users with the driver role
       const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
         .select('user_id')
@@ -203,197 +197,247 @@ export default function ManageDrivers() {
 
   if (authLoading || loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-background">
-        <Loader2 className="h-12 w-12 animate-spin text-accent" />
+      <div className="bg-background text-on-background min-h-screen flex items-center justify-center">
+        <span className="material-symbols-outlined animate-spin text-[48px] text-electric-violet">sync</span>
       </div>
     );
   }
 
+  const inputCls = "w-full bg-surface-container-highest border border-outline-variant rounded-lg py-3 px-4 font-body-md text-white focus:border-electric-violet focus:ring-1 focus:ring-electric-violet focus:outline-none transition-all placeholder:text-outline-variant";
+  const selectCls = "w-full bg-surface-container-highest border border-outline-variant rounded-lg py-3 px-4 font-body-md text-white focus:border-electric-violet focus:ring-1 focus:ring-electric-violet focus:outline-none transition-all appearance-none cursor-pointer";
+
+  const filteredDrivers = drivers.filter(d => 
+    `${d.first_name} ${d.last_name}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    d.license_no.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 border-b border-border bg-card/80 backdrop-blur-md">
-        <div className="container mx-auto flex h-16 items-center justify-between px-4">
-          <div className="flex items-center gap-4">
-            <Link to="/admin" className="text-muted-foreground hover:text-foreground transition-colors">
-              <ArrowLeft className="h-5 w-5" />
-            </Link>
-            <div className="flex items-center gap-2">
-              <UserCog className="h-5 w-5 text-success" />
-              <h1 className="font-bold text-foreground">Manage Drivers</h1>
-            </div>
+    <AdminLayout>
+      <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-electric-violet/10 rounded-full blur-[120px] pointer-events-none -z-10"></div>
+      <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-emerald-spark/5 rounded-full blur-[100px] pointer-events-none -z-10"></div>
+
+      <div className="max-w-6xl mx-auto space-y-md">
+        {/* Page Header */}
+        <div className="flex flex-col md:flex-row md:justify-between md:items-end mb-margin gap-md">
+          <div>
+            <h1 className="font-h1 text-h2 text-white mb-2">Manage Drivers</h1>
+            <p className="font-body-md text-body-md text-on-surface-variant">View and manage the fleet's active driving personnel.</p>
           </div>
-          <Dialog open={dialogOpen} onOpenChange={(open) => {
-            setDialogOpen(open);
-            if (!open) {
-              setEditingDriver(null);
-              setFormData({ first_name: '', last_name: '', license_no: '', phone_num: '', bus_id: '', user_id: '' });
-            }
-          }}>
-            <DialogTrigger asChild>
-              <Button variant="accent">
-                <Plus className="mr-2 h-4 w-4" />
-                Add Driver
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>{editingDriver ? 'Edit Driver' : 'Add New Driver'}</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="first_name">First Name</Label>
-                    <Input
-                      id="first_name"
-                      value={formData.first_name}
-                      onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-                      placeholder="John"
-                      required
-                    />
+          <div className="flex flex-col sm:flex-row gap-sm">
+            <div className="relative">
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+              <input 
+                className="bg-surface-container/50 border border-white/10 rounded-lg py-2 pl-10 pr-4 text-white focus:outline-none focus:border-electric-violet focus:ring-1 focus:ring-electric-violet transition-all w-full md:w-64 placeholder:text-on-surface-variant font-body-md text-body-md" 
+                placeholder="Search drivers..." 
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+
+            <Dialog open={dialogOpen} onOpenChange={(open) => {
+              setDialogOpen(open);
+              if (!open) {
+                setEditingDriver(null);
+                setFormData({ first_name: '', last_name: '', license_no: '', phone_num: '', bus_id: '', user_id: '' });
+              }
+            }}>
+              <DialogTrigger asChild>
+                <button className="bg-emerald-spark text-midnight-indigo font-label-md text-label-md px-6 py-2 rounded-lg hover:bg-emerald-spark/90 transition-all shadow-[0_0_20px_hsla(165,80%,50%,0.2)] flex items-center justify-center gap-xs whitespace-nowrap active:scale-95">
+                  <span className="material-symbols-outlined text-sm font-bold">add</span>
+                  Add Driver
+                </button>
+              </DialogTrigger>
+              <DialogContent className="bg-surface border-white/10 text-white max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle className="font-h3 text-xl">{editingDriver ? 'Edit Driver' : 'Add New Driver'}</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label htmlFor="first_name" className="font-label-sm text-outline uppercase tracking-wider">First Name</label>
+                      <input
+                        id="first_name"
+                        value={formData.first_name}
+                        onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+                        placeholder="John"
+                        className={inputCls}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label htmlFor="last_name" className="font-label-sm text-outline uppercase tracking-wider">Last Name</label>
+                      <input
+                        id="last_name"
+                        value={formData.last_name}
+                        onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                        placeholder="Doe"
+                        className={inputCls}
+                        required
+                      />
+                    </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="last_name">Last Name</Label>
-                    <Input
-                      id="last_name"
-                      value={formData.last_name}
-                      onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                      placeholder="Doe"
-                      required
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="license_no">License Number</Label>
-                  <div className="relative">
-                    <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
+                    <label htmlFor="license_no" className="font-label-sm text-outline uppercase tracking-wider">License Number</label>
+                    <input
                       id="license_no"
                       value={formData.license_no}
                       onChange={(e) => setFormData({ ...formData, license_no: e.target.value })}
                       placeholder="DL-12345678"
-                      className="pl-10"
+                      className={inputCls}
                       required
                     />
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="phone_num">Phone Number</Label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
+                  <div className="space-y-2">
+                    <label htmlFor="phone_num" className="font-label-sm text-outline uppercase tracking-wider">Phone Number</label>
+                    <input
                       id="phone_num"
                       value={formData.phone_num}
                       onChange={(e) => setFormData({ ...formData, phone_num: e.target.value })}
                       placeholder="+1 234 567 8900"
-                      className="pl-10"
+                      className={inputCls}
                     />
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="bus">Assigned Bus</Label>
-                  <Select
-                    value={formData.bus_id}
-                    onValueChange={(value) => setFormData({ ...formData, bus_id: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a bus (optional)" />
-                    </SelectTrigger>
-                    <SelectContent>
+                  <div className="space-y-2 relative">
+                    <label htmlFor="bus_id" className="font-label-sm text-outline uppercase tracking-wider">Assigned Bus (Optional)</label>
+                    <select
+                      id="bus_id"
+                      value={formData.bus_id}
+                      onChange={(e) => setFormData({ ...formData, bus_id: e.target.value })}
+                      className={selectCls}
+                    >
+                      <option value="">Unassigned</option>
                       {buses.map((bus) => (
-                        <SelectItem key={bus.id} value={bus.id}>
+                        <option key={bus.id} value={bus.id}>
                           {bus.bus_no}
-                        </SelectItem>
+                        </option>
                       ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="user_id">Link to User Account</Label>
-                  <Select
-                    value={formData.user_id}
-                    onValueChange={(value) => {
-                      const selected = driverUsers.find((u) => u.id === value);
-                      setFormData({
-                        ...formData,
-                        user_id: value,
-                        first_name: selected?.first_name || formData.first_name,
-                        last_name: selected?.last_name || formData.last_name,
-                      });
-                    }}
+                    </select>
+                    <span className="material-symbols-outlined absolute right-3 top-[38px] text-outline pointer-events-none">expand_more</span>
+                  </div>
+                  <div className="space-y-2 relative">
+                    <label htmlFor="user_id" className="font-label-sm text-outline uppercase tracking-wider">Link to User Account (Optional)</label>
+                    <select
+                      id="user_id"
+                      value={formData.user_id}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        const selected = driverUsers.find((u) => u.id === value);
+                        setFormData({
+                          ...formData,
+                          user_id: value,
+                          first_name: selected?.first_name || formData.first_name,
+                          last_name: selected?.last_name || formData.last_name,
+                        });
+                      }}
+                      className={selectCls}
+                    >
+                      <option value="">No linked account</option>
+                      {driverUsers.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.first_name} {u.last_name} — {u.email}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="material-symbols-outlined absolute right-3 top-[38px] text-outline pointer-events-none">expand_more</span>
+                    <p className="text-xs text-on-surface-variant">Only users with 'driver' role appear here.</p>
+                  </div>
+                  <button 
+                    type="submit" 
+                    disabled={submitting}
+                    className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 bg-electric-violet text-white rounded-lg font-label-md text-label-md shadow-[0_0_15px_rgba(138,117,240,0.3)] hover:bg-opacity-90 transition-all active:scale-95 mt-4"
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select driver user (optional)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {driverUsers.length === 0 ? (
-                        <SelectItem value="none" disabled>No users with 'driver' role found</SelectItem>
-                      ) : (
-                        driverUsers.map((u) => (
-                          <SelectItem key={u.id} value={u.id}>
-                            {u.first_name} {u.last_name} — {u.email}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">Only users with the 'driver' role appear here. Set roles in Manage Users.</p>
-                </div>
-                <Button type="submit" variant="accent" className="w-full" disabled={submitting}>
-                  {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  {editingDriver ? 'Update Driver' : 'Add Driver'}
-                </Button>
-              </form>
-            </DialogContent>
-          </Dialog>
+                    {submitting ? <span className="material-symbols-outlined animate-spin text-sm">sync</span> : null}
+                    {editingDriver ? 'Update Driver' : 'Add Driver'}
+                  </button>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
-      </header>
 
-      <main className="container mx-auto px-4 py-8">
-        <Card className="border-border/50 shadow-soft">
-          <CardContent className="p-0">
-            {drivers.length === 0 ? (
-              <div className="py-16 text-center">
-                <UserCog className="mx-auto mb-4 h-12 w-12 text-muted-foreground/50" />
-                <p className="text-muted-foreground">No drivers added yet</p>
+        {/* Glassmorphic Data Table */}
+        <div className="bg-surface/40 backdrop-blur-xl rounded-xl border border-white/5 overflow-hidden shadow-2xl relative">
+          <div className="overflow-x-auto">
+            {filteredDrivers.length === 0 ? (
+              <div className="py-16 text-center flex flex-col items-center">
+                <span className="material-symbols-outlined text-[48px] text-outline/30 mb-4">badge</span>
+                <p className="text-outline">No drivers found</p>
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>License No.</TableHead>
-                    <TableHead>Phone</TableHead>
-                    <TableHead>Assigned Bus</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {drivers.map((driver) => (
-                    <TableRow key={driver.id}>
-                      <TableCell className="font-medium">
-                        {driver.first_name} {driver.last_name}
-                      </TableCell>
-                      <TableCell>{driver.license_no}</TableCell>
-                      <TableCell>{driver.phone_num || '-'}</TableCell>
-                      <TableCell>
-                        {driver.bus ? driver.bus.bus_no : <span className="text-muted-foreground">Not assigned</span>}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="sm" onClick={() => handleEdit(driver)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleDelete(driver.id)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-white/5 bg-white/5">
+                    <th className="py-4 px-6 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Driver Name</th>
+                    <th className="py-4 px-6 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">License No.</th>
+                    <th className="py-4 px-6 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Phone</th>
+                    <th className="py-4 px-6 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Assigned Bus</th>
+                    <th className="py-4 px-6 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {filteredDrivers.map((driver) => (
+                    <tr key={driver.id} className="hover:bg-white/5 transition-colors group">
+                      <td className="py-4 px-6">
+                        <div className="flex items-center gap-sm">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center border ${driver.bus ? 'bg-electric-violet/20 border-electric-violet/30' : 'bg-surface-container border-white/10'}`}>
+                            <span className={`material-symbols-outlined ${driver.bus ? 'text-electric-violet' : 'text-on-surface-variant'}`}>person</span>
+                          </div>
+                          <div>
+                            <div className="font-label-md text-label-md text-white">{driver.first_name} {driver.last_name}</div>
+                            <div className={`font-label-sm text-label-sm flex items-center gap-1 ${driver.bus ? 'text-emerald-spark' : 'text-tertiary'}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${driver.bus ? 'bg-emerald-spark' : 'bg-tertiary'}`}></span> 
+                              {driver.bus ? 'Assigned' : 'Unassigned'}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-4 px-6 font-body-md text-body-md text-on-surface">{driver.license_no}</td>
+                      <td className="py-4 px-6 font-body-md text-body-md text-on-surface">{driver.phone_num || '-'}</td>
+                      <td className="py-4 px-6">
+                        {driver.bus ? (
+                          <span className="px-3 py-1 bg-surface-container rounded-lg border border-white/5 font-label-sm text-label-sm text-on-surface whitespace-nowrap">
+                            Bus {driver.bus.bus_no}
+                          </span>
+                        ) : (
+                          <span className="px-3 py-1 bg-surface-container rounded-lg border border-white/5 font-label-sm text-label-sm text-on-surface-variant italic whitespace-nowrap">
+                            Unassigned
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-4 px-6 text-right">
+                        <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button 
+                            onClick={() => handleEdit(driver)}
+                            className="p-2 rounded-lg hover:bg-white/10 text-electric-violet transition-colors"
+                            title="Edit Driver"
+                          >
+                            <span className="material-symbols-outlined text-sm">edit</span>
+                          </button>
+                          <button 
+                            onClick={() => handleDelete(driver.id)}
+                            className="p-2 rounded-lg hover:bg-white/10 text-on-surface-variant hover:text-error transition-colors"
+                            title="Delete Driver"
+                          >
+                            <span className="material-symbols-outlined text-sm">delete</span>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
                   ))}
-                </TableBody>
-              </Table>
+                </tbody>
+              </table>
             )}
-          </CardContent>
-        </Card>
-      </main>
-    </div>
+          </div>
+          
+          {/* Pagination Footer */}
+          {filteredDrivers.length > 0 && (
+            <div className="border-t border-white/5 px-6 py-4 flex items-center justify-between bg-white/5">
+              <span className="font-body-md text-body-md text-on-surface-variant">Showing {filteredDrivers.length} drivers</span>
+            </div>
+          )}
+        </div>
+      </div>
+    </AdminLayout>
   );
 }

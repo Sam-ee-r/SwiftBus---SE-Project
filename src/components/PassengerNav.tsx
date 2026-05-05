@@ -3,6 +3,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 interface Notification {
   id: string;
@@ -96,7 +97,7 @@ export function PassengerNav() {
   return (
     <>
       {/* Desktop Top Nav */}
-      <nav className="fixed top-0 w-full z-50 bg-slate-950/80 backdrop-blur-xl border-b border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.4)] hidden md:flex">
+      <nav className="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-xl border-b border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.4)] hidden md:flex">
         <div className="flex justify-between items-center h-16 px-6 md:px-12 w-full max-w-[1440px] mx-auto">
           {/* Logo */}
           <div
@@ -116,7 +117,8 @@ export function PassengerNav() {
           </div>
 
           {/* Right Side */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-4">
+            <ThemeToggle />
             {user ? (
               <>
                 {/* Notifications Dropdown */}
@@ -208,7 +210,7 @@ export function PassengerNav() {
       </nav>
 
       {/* Mobile Top Bar */}
-      <nav className="fixed top-0 w-full z-50 bg-slate-950/90 backdrop-blur-xl border-b border-white/10 flex md:hidden items-center justify-between px-4 h-14">
+      <nav className="fixed top-0 w-full z-50 bg-surface/90 backdrop-blur-xl border-b border-white/10 flex md:hidden items-center justify-between px-4 h-14">
         <div
           className="font-['Space_Grotesk'] text-xl font-bold bg-gradient-to-r from-violet-400 to-emerald-400 bg-clip-text text-transparent cursor-pointer"
           onClick={() => navigate('/')}
@@ -227,7 +229,7 @@ export function PassengerNav() {
 
       {/* Mobile Bottom Nav (only when user is logged in) */}
       {user && (
-        <nav className="fixed bottom-0 left-0 w-full h-[68px] z-50 flex justify-around items-center px-2 bg-indigo-950/95 backdrop-blur-2xl border-t border-white/10 shadow-[0_-4px_20px_rgba(0,0,0,0.5)] md:hidden rounded-t-2xl">
+        <nav className="fixed bottom-0 left-0 w-full h-[68px] z-50 flex justify-around items-center px-2 bg-surface-container-high/90 backdrop-blur-2xl border-t border-white/10 shadow-[0_-4px_20px_rgba(0,0,0,0.5)] md:hidden rounded-t-2xl">
           <MobileNavBtn icon="home" label="Home" active={isActive('/')} onClick={() => navigate('/')} />
           <MobileNavBtn icon="search" label="Find Buses" active={isActive('/search')} onClick={() => navigate('/search')} />
           <MobileNavBtn icon="confirmation_number" label="Bookings" active={isActive('/my-bookings')} onClick={() => navigate('/my-bookings')} />
@@ -240,8 +242,8 @@ export function PassengerNav() {
             
             {/* Mobile Dropdown Popover */}
             {showDropdown && (
-              <div className="absolute bottom-[75px] left-1/2 -translate-x-1/2 w-[90vw] max-w-[340px] bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col z-50 origin-bottom">
-                <div className="p-4 border-b border-white/10 flex justify-between items-center bg-slate-900/90 backdrop-blur-xl">
+              <div className="absolute bottom-[75px] left-1/2 -translate-x-1/2 w-[90vw] max-w-[340px] bg-surface-container border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col z-50 origin-bottom">
+                <div className="p-4 border-b border-white/10 flex justify-between items-center bg-surface-container/90 backdrop-blur-xl">
                   <h3 className="font-['Space_Grotesk'] text-white font-bold text-base">Alerts</h3>
                   {unreadCount > 0 && (
                     <button 

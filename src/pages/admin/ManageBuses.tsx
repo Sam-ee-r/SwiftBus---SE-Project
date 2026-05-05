@@ -1,16 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-// routes are managed via schedules; no select import needed here
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { ArrowLeft, Plus, Pencil, Trash2, Bus, Loader2 } from 'lucide-react';
+import { AdminLayout } from '@/components/AdminLayout';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 interface Bus {
   id: string;
@@ -27,6 +21,7 @@ export default function ManageBuses() {
   const [editingBus, setEditingBus] = useState<Bus | null>(null);
   const [formData, setFormData] = useState({ bus_no: '', capacity: 40 });
   const [submitting, setSubmitting] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     if (!authLoading && (!user || !isAdmin)) {
@@ -36,7 +31,7 @@ export default function ManageBuses() {
     if (user && isAdmin) {
       fetchData();
     }
-  }, [user, isAdmin, authLoading]);
+  }, [user, isAdmin, authLoading, navigate]);
 
   const fetchData = async () => {
     try {
@@ -94,7 +89,7 @@ export default function ManageBuses() {
   };
 
   const handleEdit = (bus: Bus) => {
-    setEditingBus(bus as any);
+    setEditingBus(bus);
     setFormData({
       bus_no: bus.bus_no,
       capacity: bus.capacity,
@@ -118,24 +113,26 @@ export default function ManageBuses() {
 
   if (authLoading || loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-background">
-        <Loader2 className="h-12 w-12 animate-spin text-accent" />
+      <div className="bg-background text-on-background min-h-screen flex items-center justify-center">
+        <span className="material-symbols-outlined animate-spin text-[48px] text-electric-violet">sync</span>
       </div>
     );
   }
 
+  const filteredBuses = buses.filter(b =>
+    b.bus_no.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const inputCls = "w-full bg-surface-container-highest border border-outline-variant rounded-lg py-3 px-4 font-body-md text-white focus:border-electric-violet focus:ring-1 focus:ring-electric-violet focus:outline-none transition-all placeholder:text-outline-variant";
+
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 border-b border-border bg-card/80 backdrop-blur-md">
-        <div className="container mx-auto flex h-16 items-center justify-between px-4">
-          <div className="flex items-center gap-4">
-            <Link to="/admin" className="text-muted-foreground hover:text-foreground transition-colors">
-              <ArrowLeft className="h-5 w-5" />
-            </Link>
-            <div className="flex items-center gap-2">
-              <Bus className="h-5 w-5 text-primary" />
-              <h1 className="font-bold text-foreground">Manage Buses</h1>
-            </div>
+    <AdminLayout>
+      <div className="max-w-6xl mx-auto space-y-md">
+        {/* Page Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-lg">
+          <div>
+            <h2 className="font-h2 text-h2 text-white mb-xs">Manage Buses</h2>
+            <p className="font-body-md text-body-md text-outline">View and organize fleet inventory</p>
           </div>
           <Dialog open={dialogOpen} onOpenChange={(open) => {
             setDialogOpen(open);
@@ -145,86 +142,129 @@ export default function ManageBuses() {
             }
           }}>
             <DialogTrigger asChild>
-              <Button variant="accent">
-                <Plus className="mr-2 h-4 w-4" />
+              <button className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-emerald-spark text-midnight-indigo rounded-lg font-label-md text-label-md shadow-[0_0_15px_rgba(52,211,153,0.3)] hover:bg-opacity-90 transition-all active:scale-95 whitespace-nowrap self-start sm:self-auto">
+                <span className="material-symbols-outlined text-sm font-bold">add</span>
                 Add Bus
-              </Button>
+              </button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="bg-surface border-white/10 text-white">
               <DialogHeader>
-                <DialogTitle>{editingBus ? 'Edit Bus' : 'Add New Bus'}</DialogTitle>
+                <DialogTitle className="font-h3 text-xl">{editingBus ? 'Edit Bus' : 'Add New Bus'}</DialogTitle>
               </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-4 mt-4">
                 <div className="space-y-2">
-                  <Label htmlFor="bus_no">Bus Number</Label>
-                  <Input
+                  <label htmlFor="bus_no" className="font-label-sm text-outline uppercase tracking-wider">Bus Number</label>
+                  <input
                     id="bus_no"
                     value={formData.bus_no}
                     onChange={(e) => setFormData({ ...formData, bus_no: e.target.value })}
                     placeholder="e.g., BUS-001"
+                    className={inputCls}
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="capacity">Capacity</Label>
-                  <Input
+                  <label htmlFor="capacity" className="font-label-sm text-outline uppercase tracking-wider">Capacity</label>
+                  <input
                     id="capacity"
                     type="number"
                     value={formData.capacity}
                     onChange={(e) => setFormData({ ...formData, capacity: parseInt(e.target.value) || 40 })}
                     min={1}
+                    className={inputCls}
                     required
                   />
                 </div>
-                {/* routes are assigned per-schedule now; no route on bus */}
-                <Button type="submit" variant="accent" className="w-full" disabled={submitting}>
-                  {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                <button 
+                  type="submit" 
+                  disabled={submitting}
+                  className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 bg-electric-violet text-white rounded-lg font-label-md text-label-md shadow-[0_0_15px_rgba(138,117,240,0.3)] hover:bg-opacity-90 transition-all active:scale-95 mt-4"
+                >
+                  {submitting ? <span className="material-symbols-outlined animate-spin text-sm">sync</span> : null}
                   {editingBus ? 'Update Bus' : 'Add Bus'}
-                </Button>
+                </button>
               </form>
             </DialogContent>
           </Dialog>
         </div>
-      </header>
 
-      <main className="container mx-auto px-4 py-8">
-        <Card className="border-border/50 shadow-soft">
-          <CardContent className="p-0">
-            {buses.length === 0 ? (
-              <div className="py-16 text-center">
-                <Bus className="mx-auto mb-4 h-12 w-12 text-muted-foreground/50" />
-                <p className="text-muted-foreground">No buses added yet</p>
+        {/* Glassmorphic Data Table Container */}
+        <div className="bg-surface/60 backdrop-blur-md rounded-xl border border-white/10 overflow-hidden shadow-[0_4px_30px_rgba(0,0,0,0.5)]">
+          {/* Search bar */}
+          <div className="px-6 py-4 border-b border-white/10 bg-white/[0.02] flex items-center gap-3">
+            <div className="relative flex-1 max-w-sm">
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">search</span>
+              <input
+                className="w-full bg-deep-space/50 border border-white/10 rounded-lg py-2 pl-10 pr-4 font-body-md text-body-md text-white placeholder-outline focus:outline-none focus:border-electric-violet focus:ring-1 focus:ring-electric-violet transition-all"
+                placeholder="Search by bus number..."
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            {filteredBuses.length === 0 ? (
+              <div className="py-16 text-center flex flex-col items-center">
+                <span className="material-symbols-outlined text-[48px] text-outline/30 mb-4">directions_bus</span>
+                <p className="text-outline">No buses found</p>
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Bus No.</TableHead>
-                    <TableHead>Capacity</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {buses.map((bus) => (
-                    <TableRow key={bus.id}>
-                      <TableCell className="font-medium">{bus.bus_no}</TableCell>
-                      <TableCell>{bus.capacity} seats</TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="sm" onClick={() => handleEdit(bus)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleDelete(bus.id)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-white/10 bg-white/5">
+                    <th className="px-6 py-4 font-label-sm text-label-sm text-outline uppercase tracking-wider">Bus No.</th>
+                    <th className="px-6 py-4 font-label-sm text-label-sm text-outline uppercase tracking-wider">Capacity</th>
+                    <th className="px-6 py-4 font-label-sm text-label-sm text-outline uppercase tracking-wider text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {filteredBuses.map((bus) => (
+                    <tr key={bus.id} className="hover:bg-white/[0.03] transition-colors group">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-surface-variant flex items-center justify-center border border-white/5">
+                            <span className="material-symbols-outlined text-white/70">directions_bus</span>
+                          </div>
+                          <span className="font-label-md text-label-md text-white">{bus.bus_no}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="inline-flex items-center px-3 py-1 rounded-full bg-surface-bright text-on-surface text-sm border border-white/10 font-body-md">
+                          {bus.capacity} Seats
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <button 
+                          onClick={() => handleEdit(bus)}
+                          className="p-2 text-outline hover:text-electric-violet hover:bg-electric-violet/10 rounded-lg transition-all" 
+                          title="Edit Bus"
+                        >
+                          <span className="material-symbols-outlined text-xl">edit</span>
+                        </button>
+                        <button 
+                          onClick={() => handleDelete(bus.id)}
+                          className="p-2 text-outline hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-all ml-2" 
+                          title="Delete Bus"
+                        >
+                          <span className="material-symbols-outlined text-xl">delete</span>
+                        </button>
+                      </td>
+                    </tr>
                   ))}
-                </TableBody>
-              </Table>
+                </tbody>
+              </table>
             )}
-          </CardContent>
-        </Card>
-      </main>
-    </div>
+          </div>
+          
+          {/* Pagination Footer (Static for now, as data is fetched all at once) */}
+          {filteredBuses.length > 0 && (
+            <div className="px-6 py-4 border-t border-white/10 bg-white/[0.02] flex items-center justify-between">
+              <p className="font-body-md text-sm text-outline">Showing {filteredBuses.length} of {buses.length} buses</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </AdminLayout>
   );
 }
