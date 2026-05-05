@@ -10,6 +10,9 @@ interface Bus {
   id: string;
   bus_no: string;
   capacity: number;
+  total_km_driven?: number;
+  km_since_service?: number;
+  last_serviced_at?: string | null;
 }
 
 export default function ManageBuses() {
@@ -35,7 +38,10 @@ export default function ManageBuses() {
 
   const fetchData = async () => {
     try {
-      const { data: busesData, error: busesError } = await supabase.from('buses').select('id, bus_no, capacity').order('bus_no');
+      const { data: busesData, error: busesError } = await supabase
+        .from('buses')
+        .select('id, bus_no, capacity, total_km_driven, km_since_service, last_serviced_at')
+        .order('bus_no');
       if (busesError) throw busesError;
       setBuses(busesData || []);
     } catch (error) {
@@ -109,6 +115,25 @@ export default function ManageBuses() {
       console.error('Error deleting bus:', error);
       toast.error('Failed to delete bus');
     }
+  };
+
+  const handleLogService = async (bus: Bus) => {
+    if (!confirm(`Log a maintenance service for ${bus.bus_no}? This will reset its km-since-service counter.`)) return;
+    const now = new Date().toISOString();
+    const { error } = await supabase.from('buses').update({
+      km_since_service: 0,
+      last_serviced_at: now,
+      maintenance_alert_dismissed: true,
+    }).eq('id', bus.id);
+    if (error) { toast.error('Failed to log service'); return; }
+    await supabase.from('bus_maintenance_logs').insert([{
+      bus_id: bus.id,
+      serviced_by: user?.id,
+      km_at_service: bus.total_km_driven || 0,
+      notes: 'Service logged by admin',
+    }]);
+    toast.success(`Service logged for ${bus.bus_no}`);
+    fetchData();
   };
 
   if (authLoading || loading) {
@@ -215,6 +240,8 @@ export default function ManageBuses() {
                   <tr className="border-b border-white/10 bg-white/5">
                     <th className="px-6 py-4 font-label-sm text-label-sm text-outline uppercase tracking-wider">Bus No.</th>
                     <th className="px-6 py-4 font-label-sm text-label-sm text-outline uppercase tracking-wider">Capacity</th>
+                    <th className="px-6 py-4 font-label-sm text-label-sm text-outline uppercase tracking-wider">Total Km</th>
+                    <th className="px-6 py-4 font-label-sm text-label-sm text-outline uppercase tracking-wider">Health</th>
                     <th className="px-6 py-4 font-label-sm text-label-sm text-outline uppercase tracking-wider text-right">Actions</th>
                   </tr>
                 </thead>
@@ -234,7 +261,42 @@ export default function ManageBuses() {
                           {bus.capacity} Seats
                         </span>
                       </td>
+                      <td className="px-6 py-4">
+                        <span className="text-sm text-white font-mono">{Math.round(bus.total_km_driven || 0).toLocaleString()} km</span>
+                      </td>
+                      <td className="px-6 py-4 min-w-[160px]">
+                        {(() => {
+                          const km = Number(bus.km_since_service || 0);
+                          const pct = Math.min((km / 10000) * 100, 100);
+                          const isOverdue = km >= 10000;
+                          const isWarning = km >= 8000;
+                          const barColor = isOverdue ? 'bg-red-500' : isWarning ? 'bg-orange-400' : 'bg-emerald-400';
+                          const label = isOverdue ? 'Overdue' : isWarning ? 'Due Soon' : 'Good';
+                          const labelColor = isOverdue ? 'text-red-400' : isWarning ? 'text-orange-400' : 'text-emerald-400';
+                          return (
+                            <div>
+                              <div className="flex justify-between text-[10px] mb-1">
+                                <span className={`font-bold uppercase tracking-wider ${labelColor}`}>{label}</span>
+                                <span className="text-slate-500">{Math.round(km).toLocaleString()} / 10k km</span>
+                              </div>
+                              <div className="h-1.5 w-full bg-surface-container-lowest rounded-full overflow-hidden">
+                                <div className={`h-full ${barColor} rounded-full transition-all`} style={{ width: `${pct}%` }} />
+                              </div>
+                              {bus.last_serviced_at && (
+                                <p className="text-[10px] text-slate-600 mt-1">Last: {new Date(bus.last_serviced_at).toLocaleDateString('en-PK', { day:'numeric', month:'short', year:'numeric' })}</p>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </td>
                       <td className="px-6 py-4 text-right">
+                        <button
+                          onClick={() => handleLogService(bus)}
+                          className="p-2 text-outline hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-all mr-1"
+                          title="Log Maintenance Service"
+                        >
+                          <span className="material-symbols-outlined text-xl">build</span>
+                        </button>
                         <button 
                           onClick={() => handleEdit(bus)}
                           className="p-2 text-outline hover:text-electric-violet hover:bg-electric-violet/10 rounded-lg transition-all" 

@@ -186,8 +186,9 @@ export default function TrackBus() {
     const routeName = schedule?.route
       ? `${schedule.route.departure} to ${schedule.route.destination}`
       : 'your route';
+    const distanceKm: number = schedule?.route?.distance_km ?? 0;
 
-    // 1. Notify all confirmed passengers for this schedule
+    // 1. Notify all confirmed passengers
     const { data: bookingsData } = await supabase
       .from('bookings')
       .select('passenger_id')
@@ -198,7 +199,7 @@ export default function TrackBus() {
       await supabase.from('notifications').insert(
         bookingsData.map((b: any) => ({
           user_id: b.passenger_id,
-          title: 'Bus Arrived 🎉',
+          title: 'Bus Arrived \ud83c\udf89',
           message: `Your bus for ${routeName} has completed its journey and arrived at the destination.`,
         }))
       );
@@ -212,10 +213,41 @@ export default function TrackBus() {
 
     if (error) {
       toast.error(`Failed to complete trip: ${error.message}`);
-    } else {
-      toast.success('Trip completed! Passengers have been notified.');
-      navigate('/driver');
+      return;
     }
+
+    // 3. Increment bus odometer
+    if (distanceKm > 0 && schedule?.bus_id) {
+      const { data: busData } = await supabase
+        .from('buses')
+        .select('total_km_driven, km_since_service')
+        .eq('id', schedule.bus_id)
+        .single();
+
+      if (busData) {
+        const newTotal = Number(busData.total_km_driven || 0) + Number(distanceKm);
+        const newSinceService = Number(busData.km_since_service || 0) + Number(distanceKm);
+
+        await supabase.from('buses').update({
+          total_km_driven: newTotal,
+          km_since_service: newSinceService,
+          maintenance_alert_dismissed: false,
+        }).eq('id', schedule.bus_id);
+
+        // 4. Send driver notification if maintenance threshold crossed
+        if (newSinceService >= 8000 && user) {
+          const isOverdue = newSinceService >= 10000;
+          await supabase.from('notifications').insert([{
+            user_id: user.id,
+            title: isOverdue ? 'Bus Maintenance Overdue \ud83d\udea8' : 'Bus Maintenance Due Soon \u26a0\ufe0f',
+            message: `Bus ${schedule.bus?.bus_no} has driven ${Math.round(newSinceService).toLocaleString()} km since last service. ${isOverdue ? 'Service is overdue — take the bus for maintenance immediately.' : 'Service due within 2,000 km.'}`,
+          }]);
+        }
+      }
+    }
+
+    toast.success('Trip completed! Passengers have been notified.');
+    navigate('/driver');
   };
 
   const handleShare = () => {

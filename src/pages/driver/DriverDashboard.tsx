@@ -48,6 +48,14 @@ export default function DriverDashboard() {
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [noBusAssigned, setNoBusAssigned] = useState(false);
   const [showPastTrips, setShowPastTrips] = useState(false);
+  const [busHealth, setBusHealth] = useState<{
+    busId: string;
+    busNo: string;
+    totalKm: number;
+    kmSinceService: number;
+    lastServicedAt: string | null;
+    alertDismissed: boolean;
+  } | null>(null);
 
   useEffect(() => {
     if (!authLoading) {
@@ -105,6 +113,24 @@ export default function DriverDashboard() {
 
       if (schedulesError) throw schedulesError;
       setTrips((schedulesData || []) as Trip[]);
+
+      // Fetch bus odometer data
+      const { data: busData } = await supabase
+        .from('buses')
+        .select('id, bus_no, total_km_driven, km_since_service, last_serviced_at, maintenance_alert_dismissed')
+        .eq('id', driverData.bus_id)
+        .single();
+
+      if (busData) {
+        setBusHealth({
+          busId: busData.id,
+          busNo: busData.bus_no,
+          totalKm: Number(busData.total_km_driven || 0),
+          kmSinceService: Number(busData.km_since_service || 0),
+          lastServicedAt: busData.last_serviced_at,
+          alertDismissed: busData.maintenance_alert_dismissed,
+        });
+      }
     } catch (error: any) {
       console.error('Error fetching trips:', error);
       setFetchError(error.message || 'Unknown error');
@@ -175,6 +201,27 @@ export default function DriverDashboard() {
     }
   };
 
+  const handleDismissMaintenance = async () => {
+    if (!busHealth) return;
+    // Reset km_since_service, record last service time, log it
+    const now = new Date().toISOString();
+    await supabase.from('buses').update({
+      km_since_service: 0,
+      last_serviced_at: now,
+      maintenance_alert_dismissed: true,
+    }).eq('id', busHealth.busId);
+
+    await supabase.from('bus_maintenance_logs').insert([{
+      bus_id: busHealth.busId,
+      serviced_by: user?.id,
+      km_at_service: busHealth.totalKm,
+      notes: 'Service confirmed by driver via dashboard',
+    }]);
+
+    setBusHealth(prev => prev ? { ...prev, kmSinceService: 0, alertDismissed: true, lastServicedAt: now } : null);
+    toast.success('Maintenance recorded. Odometer reset. Safe driving!');
+  };
+
   // Active = today, not completed
   const todayTrips = trips.filter((t) => isToday(new Date(t.travel_date + 'T00:00:00')) && t.status !== 'completed');
   // Upcoming = future date, not completed
@@ -219,7 +266,79 @@ export default function DriverDashboard() {
         </div>
       </header>
 
-      <main className="container mx-auto max-w-5xl px-4 md:px-8 py-8 space-y-10 relative z-10">
+      <main className="container mx-auto max-w-5xl px-4 md:px-8 py-8 space-y-6 relative z-10">
+
+        {/* Bus Maintenance Card */}
+        {busHealth && (() => {
+          const { kmSinceService, totalKm, lastServicedAt, alertDismissed, busNo } = busHealth;
+          const isWarning = kmSinceService >= 8000;
+          const isOverdue = kmSinceService >= 10000;
+          const pct = Math.min((kmSinceService / 10000) * 100, 100);
+          const color = isOverdue ? '#f87171' : isWarning ? '#fb923c' : '#34d399';
+
+          if (!isWarning || alertDismissed) {
+            // Compact info card
+            return (
+              <div className="bg-surface-container/40 backdrop-blur-xl border border-white/5 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center gap-5">
+                <div className="relative w-14 h-14 shrink-0">
+                  <svg viewBox="0 0 36 36" className="w-14 h-14 -rotate-90">
+                    <circle cx="18" cy="18" r="15.9" fill="none" stroke="#ffffff08" strokeWidth="3" />
+                    <circle cx="18" cy="18" r="15.9" fill="none" stroke={color} strokeWidth="3"
+                      strokeDasharray={`${pct} ${100 - pct}`} strokeLinecap="round" />
+                  </svg>
+                  <span className="material-symbols-outlined absolute inset-0 flex items-center justify-center text-[20px]" style={{color}}>build</span>
+                </div>
+                <div className="flex-1">
+                  <p className="font-bold text-white text-sm">{busNo} — Maintenance Health</p>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {Math.round(kmSinceService).toLocaleString()} / 10,000 km since last service &bull; {Math.round(totalKm).toLocaleString()} km total
+                  </p>
+                  {lastServicedAt && (
+                    <p className="text-xs text-slate-600 mt-0.5">Last serviced: {new Date(lastServicedAt).toLocaleDateString('en-PK', { day:'numeric', month:'short', year:'numeric' })}</p>
+                  )}
+                </div>
+              </div>
+            );
+          }
+
+          // Full-width alert banner
+          return (
+            <div className={`rounded-2xl border p-5 flex flex-col sm:flex-row sm:items-center gap-5 ${
+              isOverdue
+                ? 'bg-red-500/10 border-red-500/30'
+                : 'bg-orange-500/10 border-orange-500/30'
+            }`}>
+              <div className="relative w-14 h-14 shrink-0">
+                <svg viewBox="0 0 36 36" className="w-14 h-14 -rotate-90">
+                  <circle cx="18" cy="18" r="15.9" fill="none" stroke="#ffffff08" strokeWidth="3" />
+                  <circle cx="18" cy="18" r="15.9" fill="none" stroke={color} strokeWidth="3"
+                    strokeDasharray={`${pct} ${100 - pct}`} strokeLinecap="round" />
+                </svg>
+                <span className="material-symbols-outlined absolute inset-0 flex items-center justify-center text-[20px] animate-pulse" style={{color}}>warning</span>
+              </div>
+              <div className="flex-1">
+                <p className={`font-bold text-sm ${isOverdue ? 'text-red-400' : 'text-orange-400'}`}>
+                  {isOverdue ? '🚨 Maintenance Overdue!' : '⚠️ Maintenance Due Soon'}
+                </p>
+                <p className="text-sm text-white font-medium mt-0.5">{busNo} has driven {Math.round(kmSinceService).toLocaleString()} km since last service.</p>
+                <p className={`text-xs mt-0.5 ${isOverdue ? 'text-red-400/70' : 'text-orange-400/70'}`}>
+                  {isOverdue ? 'Service is overdue. Take the bus for maintenance immediately.' : `${Math.round(10000 - kmSinceService).toLocaleString()} km until service is required.`}
+                </p>
+              </div>
+              <button
+                onClick={handleDismissMaintenance}
+                className={`self-start sm:self-auto shrink-0 font-bold text-sm px-5 py-2.5 rounded-xl transition-all active:scale-95 ${
+                  isOverdue
+                    ? 'bg-red-500 hover:bg-red-400 text-white'
+                    : 'bg-orange-500 hover:bg-orange-400 text-white'
+                }`}
+              >
+                Mark as Serviced
+              </button>
+            </div>
+          );
+        })()}
+
         {activeTrips.length === 0 && !fetchError && !noBusAssigned ? (
           <div className="flex flex-col items-center justify-center py-24 text-center bg-surface-container/30 backdrop-blur-md rounded-2xl border border-white/5">
             <span className="material-symbols-outlined text-[64px] text-slate-500/30 mb-4">directions_bus</span>
