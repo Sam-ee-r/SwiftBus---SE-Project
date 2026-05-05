@@ -186,7 +186,7 @@ export default function SearchPage() {
         </aside>
 
         {/* ── Results ── */}
-        <main className="flex-1 md:ml-72 p-6 md:p-8 pb-24 md:pb-8">
+        <main className="flex-1 md:ml-72 p-4 md:p-8 pb-[84px] md:pb-8">
           {/* Header row */}
           <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
@@ -263,16 +263,18 @@ export default function SearchPage() {
                     </div>
 
                     {/* Price & Action */}
-                    <div className="flex flex-row md:flex-col items-center md:items-end justify-between md:justify-center border-t md:border-t-0 md:border-l border-white/10 pt-5 md:pt-0 md:pl-6 gap-4 md:min-w-[160px]">
-                      <div className="flex flex-col items-start md:items-end">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">from</span>
-                        <span className="font-['Space_Grotesk'] text-2xl font-black text-emerald-400">
-                          PKR {(s.seat_price ?? 1500).toLocaleString('en-PK')}
-                        </span>
+                    <div className="flex flex-col md:flex-row md:flex-col items-stretch md:items-end justify-between md:justify-center border-t md:border-t-0 md:border-l border-white/10 pt-4 md:pt-0 md:pl-6 gap-3 md:min-w-[160px]">
+                      <div className="flex items-center justify-between md:flex-col md:items-end gap-2">
+                        <div className="flex flex-col items-start md:items-end">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">from</span>
+                          <span className="font-['Space_Grotesk'] text-2xl font-black text-emerald-400">
+                            PKR {(s.seat_price ?? 1500).toLocaleString('en-PK')}
+                          </span>
+                        </div>
                       </div>
                       <button
                         onClick={() => navigate(`/book/schedule/${s.id}`)}
-                        className="bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold text-sm px-7 py-3 rounded-xl transition-all shadow-[0_0_15px_hsla(165,80%,50%,0.3)] hover:shadow-[0_0_25px_hsla(165,80%,50%,0.5)] flex items-center gap-2 active:scale-95"
+                        className="w-full md:w-auto bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold text-sm px-7 py-3 rounded-xl transition-all shadow-[0_0_15px_hsla(165,80%,50%,0.3)] hover:shadow-[0_0_25px_hsla(165,80%,50%,0.5)] flex items-center justify-center gap-2 active:scale-95"
                       >
                         Select <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
                       </button>

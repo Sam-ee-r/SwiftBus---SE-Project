@@ -290,8 +290,10 @@ export default function DriverDashboard() {
                 </div>
                 <div className="flex-1">
                   <p className="font-bold text-white text-sm">{busNo} — Maintenance Health</p>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    {Math.round(kmSinceService).toLocaleString()} / 10,000 km since last service &bull; {Math.round(totalKm).toLocaleString()} km total
+                  <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">
+                     <span className="block sm:inline">{Math.round(kmSinceService).toLocaleString()} / 10,000 km since service</span>
+                     <span className="hidden sm:inline"> &bull; </span>
+                     <span className="block sm:inline">{Math.round(totalKm).toLocaleString()} km total</span>
                   </p>
                   {lastServicedAt && (
                     <p className="text-xs text-slate-600 mt-0.5">Last serviced: {new Date(lastServicedAt).toLocaleDateString('en-PK', { day: '2-digit', month: '2-digit', year: 'numeric' }).split('/').join('-')}</p>
@@ -493,7 +495,7 @@ function TripCard({
           </div>
         )}
 
-        <div className="flex flex-wrap items-center gap-5 text-sm text-slate-400 font-medium">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm text-slate-400 font-medium">
           <span className="flex items-center gap-1.5 bg-surface-container px-2 py-1 rounded-md border border-white/5">
             <span className="material-symbols-outlined text-[16px] text-slate-500">schedule</span>
             {trip.departure_time} → {trip.arrival_time}
@@ -512,7 +514,7 @@ function TripCard({
       </div>
 
       {/* Action Panel */}
-      <div className="flex flex-col items-center justify-center p-6 bg-surface-container-high/30 border-t md:border-t-0 md:border-l border-white/5 md:w-56 relative z-10">
+      <div className="flex flex-row md:flex-col items-center justify-between md:justify-center gap-3 p-4 md:p-6 bg-surface-container-high/30 border-t md:border-t-0 md:border-l border-white/5 md:w-56 relative z-10">
         {trip.status === 'scheduled' && (
           <button
             disabled={isUpdating}

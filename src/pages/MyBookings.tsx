@@ -164,7 +164,7 @@ export default function MyBookings() {
       <PassengerNav />
 
       {/* Main Content */}
-      <main className="relative z-10 pt-[80px] pb-[100px] md:pb-8 px-4 md:px-margin max-w-7xl mx-auto">
+      <main className="relative z-10 pt-[80px] pb-[84px] md:pb-8 px-4 md:px-margin max-w-7xl mx-auto">
         {/* Header */}
         <header className="mb-lg">
           <h1 className="font-h1 text-4xl md:text-5xl font-bold text-on-surface mb-2">My Bookings</h1>
@@ -216,7 +216,7 @@ export default function MyBookings() {
                           {booking.bus.bus_no}
                         </span>
                       </div>
-                      <h2 className={`font-h3 text-2xl font-semibold text-on-surface ${isCancelled ? 'line-through text-on-surface-variant' : ''}`}>
+                      <h2 className={`font-h3 text-xl md:text-2xl font-semibold text-on-surface ${isCancelled ? 'line-through text-on-surface-variant' : ''}`}>
                         {booking.bus.route?.departure} to {booking.bus.route?.destination}
                       </h2>
                     </div>
@@ -271,7 +271,7 @@ export default function MyBookings() {
                     </div>
                   </div>
 
-                  <div className="flex justify-end gap-3 mt-auto z-10">
+                  <div className="flex flex-wrap justify-end gap-2 mt-auto z-10">
                     {!isCancelled && !isPast && !isCompleted && (
                       <button 
                         onClick={() => handleCancelBooking(booking.id)}

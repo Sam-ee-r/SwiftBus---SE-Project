@@ -293,7 +293,7 @@ export default function BookPage() {
       <PassengerNav />
 
       {/* Main Content */}
-      <main className="relative z-10 pt-xl pb-xl px-gutter md:px-margin max-w-7xl mx-auto mt-16 md:mt-16">
+      <main className="relative z-10 pt-xl px-gutter md:px-margin max-w-7xl mx-auto mt-16 pb-[160px] lg:pb-12">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-margin">
           
           {/* Left Column: Seat Map */}
@@ -361,8 +361,8 @@ export default function BookPage() {
             </div>
           </div>
           
-          {/* Right Column: Booking Summary */}
-          <div className="lg:col-span-4 flex flex-col gap-md">
+          {/* Right Column: Booking Summary — desktop only; mobile uses sticky bottom bar */}
+          <div className="hidden lg:flex lg:col-span-4 flex-col gap-md">
             <div className="glass-panel rounded-xl p-md flex flex-col gap-md sticky top-[88px]">
               <h2 className="font-h3 text-h3 text-on-surface mb-xs">Booking Summary</h2>
               
@@ -423,6 +423,28 @@ export default function BookPage() {
           </div>
         </div>
       </main>
+
+      {/* ── Mobile Sticky Bottom CTA (sits above the 68px PassengerNav bottom bar) ── */}
+      <div className="fixed left-0 right-0 lg:hidden bg-[#0f0d15]/95 backdrop-blur-2xl border-t border-white/10 px-4 py-3 z-[60]" style={{ bottom: '68px' }}>
+        <div className="flex items-center gap-4 max-w-lg mx-auto">
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              {selectedSeats.length > 0 ? `${selectedSeats.length} seat${selectedSeats.length > 1 ? 's' : ''} selected` : 'No seats selected'}
+            </p>
+            <p className="text-xl font-bold text-emerald-400 font-['Space_Grotesk'] truncate">
+              {selectedSeats.length > 0 ? `PKR ${totalPrice.toLocaleString('en-PK')}` : `PKR ${pricePerSeat.toLocaleString('en-PK')} / seat`}
+            </p>
+          </div>
+          <button
+            disabled={selectedSeats.length === 0 || !!booking}
+            onClick={() => setShowPayment(true)}
+            className="shrink-0 px-6 py-3 rounded-xl bg-emerald-500 text-slate-900 font-bold text-sm flex items-center gap-2 active:scale-95 transition-all shadow-[0_0_20px_hsla(165,80%,50%,0.4)] disabled:opacity-40 disabled:pointer-events-none"
+          >
+            {booking ? <span className="material-symbols-outlined animate-spin text-[18px]">sync</span> : <span className="material-symbols-outlined text-[18px]">check</span>}
+            {booking ? 'Saving…' : 'Book Seats'}
+          </button>
+        </div>
+      </div>
 
       {/* Payment Gateway Dialog */}
       <Dialog open={showPayment} onOpenChange={(o) => { if (!o) setShowPayment(false); }}>
