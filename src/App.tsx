@@ -20,6 +20,7 @@ import ManageUsers from "./pages/admin/ManageUsers";
 import DriverDashboard from "./pages/driver/DriverDashboard";
 import ProfileDashboard from "./pages/ProfileDashboard";
 import NotFound from "./pages/NotFound";
+import TrackBus from "./pages/TrackBus";
 
 const queryClient = new QueryClient();
 
@@ -46,6 +47,7 @@ const App = () => (
             <Route path="/admin/bookings" element={<ViewBookings />} />
             <Route path="/admin/users" element={<ManageUsers />} />
             <Route path="/driver" element={<DriverDashboard />} />
+            <Route path="/track/:scheduleId" element={<TrackBus />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

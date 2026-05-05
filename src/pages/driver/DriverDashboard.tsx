@@ -47,6 +47,7 @@ export default function DriverDashboard() {
   const [driverName, setDriverName] = useState('');
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [noBusAssigned, setNoBusAssigned] = useState(false);
+  const [showPastTrips, setShowPastTrips] = useState(false);
 
   useEffect(() => {
     if (!authLoading) {
@@ -55,6 +56,20 @@ export default function DriverDashboard() {
       fetchTrips();
     }
   }, [user, isDriver, authLoading]);
+
+  // Realtime: update local trip status when schedule changes in DB
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase.channel('driver-schedules-realtime')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'schedules' }, (payload) => {
+        const updated = payload.new;
+        setTrips(prev => prev.map(t =>
+          t.id === updated.id ? { ...t, status: updated.status as TripStatus, trip_progress: updated.trip_progress } : t
+        ));
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user]);
 
   const fetchTrips = async () => {
     if (!user) return;
@@ -85,7 +100,6 @@ export default function DriverDashboard() {
         .from('schedules')
         .select('id, departure_time, arrival_time, travel_date, status, seat_price, route:routes(departure, destination, distance_km), bus:buses(bus_no, capacity)')
         .eq('bus_id', driverData.bus_id)
-        .gte('travel_date', format(new Date(), 'yyyy-MM-dd'))
         .order('travel_date', { ascending: true })
         .order('departure_time', { ascending: true });
 
@@ -139,7 +153,7 @@ export default function DriverDashboard() {
           return;
         }
 
-        fetchTrips();
+        navigate(`/track/${tripId}`);
         return;
       }
 
@@ -161,8 +175,13 @@ export default function DriverDashboard() {
     }
   };
 
-  const todayTrips = trips.filter((t) => isToday(new Date(t.travel_date + 'T00:00:00')));
-  const upcomingTrips = trips.filter((t) => !isToday(new Date(t.travel_date + 'T00:00:00')));
+  // Active = today, not completed
+  const todayTrips = trips.filter((t) => isToday(new Date(t.travel_date + 'T00:00:00')) && t.status !== 'completed');
+  // Upcoming = future date, not completed
+  const upcomingTrips = trips.filter((t) => !isToday(new Date(t.travel_date + 'T00:00:00')) && t.status !== 'completed' && new Date(t.travel_date) > new Date());
+  // Completed = any date, status completed
+  const completedTrips = trips.filter((t) => t.status === 'completed');
+  const activeTrips = [...todayTrips, ...upcomingTrips];
 
   if (authLoading || loading) {
     return (
@@ -201,7 +220,7 @@ export default function DriverDashboard() {
       </header>
 
       <main className="container mx-auto max-w-5xl px-4 md:px-8 py-8 space-y-10 relative z-10">
-        {trips.length === 0 ? (
+        {activeTrips.length === 0 && !fetchError && !noBusAssigned ? (
           <div className="flex flex-col items-center justify-center py-24 text-center bg-surface-container/30 backdrop-blur-md rounded-2xl border border-white/5">
             <span className="material-symbols-outlined text-[64px] text-slate-500/30 mb-4">directions_bus</span>
             {fetchError ? (
@@ -237,7 +256,7 @@ export default function DriverDashboard() {
                 </div>
                 <div className="grid gap-4">
                   {todayTrips.map((trip) => (
-                    <TripCard key={trip.id} trip={trip} onUpdateStatus={updateStatus} updatingId={updatingId} />
+                    <TripCard key={trip.id} trip={trip} onUpdateStatus={updateStatus} updatingId={updatingId} navigate={navigate} />
                   ))}
                 </div>
               </section>
@@ -254,12 +273,61 @@ export default function DriverDashboard() {
                 </div>
                 <div className="grid gap-4">
                   {upcomingTrips.map((trip) => (
-                    <TripCard key={trip.id} trip={trip} onUpdateStatus={updateStatus} updatingId={updatingId} />
+                    <TripCard key={trip.id} trip={trip} onUpdateStatus={updateStatus} updatingId={updatingId} navigate={navigate} />
                   ))}
                 </div>
               </section>
             )}
           </>
+        )}
+
+        {/* Past / Completed Trips — collapsible */}
+        {completedTrips.length > 0 && (
+          <section>
+            <button
+              onClick={() => setShowPastTrips(p => !p)}
+              className="w-full flex items-center justify-between gap-3 mb-4 group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-slate-500/10 border border-white/5">
+                  <span className="material-symbols-outlined text-slate-400 text-[20px]">history</span>
+                </div>
+                <h2 className="font-h2 text-xl text-slate-400 group-hover:text-white transition-colors tracking-tight">Past Trips</h2>
+                <span className="font-label-sm text-xs bg-surface-container px-2.5 py-1 rounded-full text-slate-400 border border-white/5">
+                  {completedTrips.length}
+                </span>
+              </div>
+              <span className={`material-symbols-outlined text-slate-500 group-hover:text-white transition-all duration-300 ${showPastTrips ? 'rotate-180' : ''}`}>
+                expand_more
+              </span>
+            </button>
+
+            {showPastTrips && (
+              <div className="grid gap-3">
+                {completedTrips.map((trip) => (
+                  <div
+                    key={trip.id}
+                    className="bg-surface-container/20 backdrop-blur-sm border border-white/5 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 opacity-70"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/10">
+                        <span className="material-symbols-outlined text-emerald-500/60 text-[20px]">check_circle</span>
+                      </div>
+                      <div>
+                        <p className="font-bold text-white text-sm">{trip.route?.departure} → {trip.route?.destination}</p>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          {format(new Date(trip.travel_date + 'T00:00:00'), 'MMM d, yyyy')} &bull; {trip.bus?.bus_no}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="self-start md:self-auto text-[10px] font-bold uppercase tracking-widest text-emerald-500/60 bg-emerald-500/10 border border-emerald-500/10 px-3 py-1 rounded-full">
+                      Completed
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
         )}
       </main>
     </div>
@@ -270,10 +338,12 @@ function TripCard({
   trip,
   onUpdateStatus,
   updatingId,
+  navigate,
 }: {
   trip: Trip;
   onUpdateStatus: (id: string, status: TripStatus) => void;
   updatingId: string | null;
+  navigate: (path: string) => void;
 }) {
   const statusCfg = STATUS_CONFIG[trip.status];
   const isUpdating = updatingId === trip.id;
@@ -340,16 +410,11 @@ function TripCard({
         )}
         {trip.status === 'in_transit' && (
           <button
-            disabled={isUpdating}
-            onClick={() => onUpdateStatus(trip.id, 'completed')}
-            className="w-full bg-emerald-spark hover:bg-emerald-500 text-surface-container-lowest font-semibold py-3 px-4 rounded-xl transition-all shadow-[0_0_15px_hsla(160,100%,40%,0.2)] hover:shadow-[0_0_20px_hsla(160,100%,40%,0.4)] flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
+            onClick={() => navigate(`/track/${trip.id}`)}
+            className="w-full bg-emerald-spark hover:bg-emerald-500 text-surface-container-lowest font-semibold py-3 px-4 rounded-xl transition-all shadow-[0_0_15px_hsla(160,100%,40%,0.2)] hover:shadow-[0_0_20px_hsla(160,100%,40%,0.4)] flex items-center justify-center gap-2 active:scale-95"
           >
-            {isUpdating ? (
-              <span className="material-symbols-outlined animate-spin text-[20px]">sync</span>
-            ) : (
-              <span className="material-symbols-outlined text-[20px]">check_circle</span>
-            )}
-            End Trip
+            <span className="material-symbols-outlined text-[20px]">speed</span>
+            Live Map
           </button>
         )}
         {trip.status === 'completed' && (

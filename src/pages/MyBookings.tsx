@@ -9,6 +9,7 @@ import { PassengerNav } from '@/components/PassengerNav';
 interface SingleBooking {
   id: string;
   schedule_id: string;
+  schedule_status?: string;
   status: string;
   travel_date: string;
   booking_date: string;
@@ -58,6 +59,20 @@ export default function MyBookings() {
     }
   }, [user, isAdmin, isDriver, authLoading, navigate]);
 
+  // Realtime: update schedule_status live when driver completes a trip
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase.channel('passenger-schedules-realtime')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'schedules' }, (payload) => {
+        const updated = payload.new;
+        setBookings(prev => prev.map(b =>
+          b.schedule_id === updated.id ? { ...b, schedule_status: updated.status } : b
+        ));
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user]);
+
   const fetchBookings = async () => {
     try {
       const { data, error } = await supabase
@@ -84,7 +99,7 @@ export default function MyBookings() {
       const scheduleIds = [...new Set((data || []).map((b: any) => b.schedule_id).filter(Boolean))];
       const { data: schedulesData } = await supabase
         .from('schedules')
-        .select('id, travel_date, departure_time, arrival_time, seat_price, bus:buses(id, bus_no), route:routes(id, departure, destination, distance_km)')
+        .select('id, travel_date, departure_time, arrival_time, seat_price, status, bus:buses(id, bus_no), route:routes(id, departure, destination, distance_km)')
         .in('id', scheduleIds.length ? scheduleIds : ['']);
 
       const bookingsWithDetails = (data || []).map((booking: any) => {
@@ -102,6 +117,7 @@ export default function MyBookings() {
           departure_time: schedule?.departure_time ?? null,
           seat_no: booking.seat_no,
           payment: payment,
+          schedule_status: schedule?.status,
           bus: {
             id: bus?.id,
             bus_no: bus?.bus_no || '',
@@ -176,6 +192,7 @@ export default function MyBookings() {
               const isCancelled = booking.status === 'cancelled';
               const isPending = booking.status === 'pending';
               const isConfirmed = booking.status === 'confirmed';
+              const isCompleted = booking.schedule_status === 'completed';
 
               return (
                 <article 
@@ -204,9 +221,15 @@ export default function MyBookings() {
                       </h2>
                     </div>
                     
-                    {isConfirmed && (
+                    {isConfirmed && !isCompleted && (
                       <span className="bg-emerald-spark/20 text-emerald-spark font-label-sm text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full border border-emerald-spark/30">
                         Confirmed
+                      </span>
+                    )}
+                    {isCompleted && (
+                      <span className="bg-sky-500/20 text-sky-400 font-label-sm text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full border border-sky-500/30 flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[14px]">task_alt</span>
+                        Completed
                       </span>
                     )}
                     {isCancelled && (
@@ -249,7 +272,7 @@ export default function MyBookings() {
                   </div>
 
                   <div className="flex justify-end gap-3 mt-auto z-10">
-                    {!isCancelled && !isPast && (
+                    {!isCancelled && !isPast && !isCompleted && (
                       <button 
                         onClick={() => handleCancelBooking(booking.id)}
                         className="px-4 py-2 rounded-lg font-label-md text-sm font-semibold text-on-surface-variant border border-outline-variant hover:bg-white/5 hover:text-white hover:border-white/20 active:scale-95 transition-all"
@@ -257,14 +280,24 @@ export default function MyBookings() {
                         Cancel
                       </button>
                     )}
-                    {isPast && !isCancelled && (
-                      <span className="px-4 py-2 font-label-md text-sm text-on-surface-variant">
+                    {(isPast || isCompleted) && !isCancelled && (
+                      <span className="px-4 py-2 font-label-md text-sm text-sky-400 font-semibold flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[16px]">check_circle</span>
                         Trip Completed
                       </span>
                     )}
                     {!isCancelled && (
                       <button className="px-4 py-2 rounded-lg font-label-md text-sm font-semibold bg-electric-violet text-white hover:bg-electric-violet/90 active:scale-95 transition-all shadow-[0_0_15px_rgba(138,117,240,0.3)]">
                         View Ticket
+                      </button>
+                    )}
+                    {isConfirmed && booking.schedule_status === 'in_transit' && (
+                      <button 
+                        onClick={() => navigate(`/track/${booking.schedule_id}`)}
+                        className="px-4 py-2 rounded-lg font-label-md text-sm font-semibold bg-emerald-spark text-surface-container-lowest hover:bg-emerald-500 active:scale-95 transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)] flex items-center gap-2"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">radar</span>
+                        Live Tracking
                       </button>
                     )}
                     {isCancelled && (
